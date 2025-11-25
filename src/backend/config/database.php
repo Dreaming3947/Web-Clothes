@@ -8,7 +8,7 @@ class Database {
     private $host = "localhost";
     private $db_name = "secondhand_marketplace";
     private $username = "root";
-    private $password = "";
+    private $password = "longlol260305";
     private $charset = "utf8mb4";
     public $conn;
 

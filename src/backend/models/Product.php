@@ -161,8 +161,35 @@ class Product {
 
         // Brand
         if (!empty($filters['brand'])) {
-            $where[] = "p.brand = :brand";
-            $params[':brand'] = $filters['brand'];
+            if (is_array($filters['brand'])) {
+                $placeholders = [];
+                foreach ($filters['brand'] as $idx => $brand) {
+                    $key = ":brand$idx";
+                    $placeholders[] = $key;
+                    $params[$key] = $brand;
+                }
+                $where[] = "p.brand IN (" . implode(',', $placeholders) . ")";
+            } else {
+                $where[] = "p.brand = :brand";
+                $params[':brand'] = $filters['brand'];
+            }
+        }
+        
+        // Category by name (for frontend filters)
+        if (!empty($filters['category'])) {
+            $joins[] = "LEFT JOIN categories cat ON p.category_id = cat.id";
+            if (is_array($filters['category'])) {
+                $placeholders = [];
+                foreach ($filters['category'] as $idx => $cat) {
+                    $key = ":category$idx";
+                    $placeholders[] = $key;
+                    $params[$key] = $cat;
+                }
+                $where[] = "cat.slug IN (" . implode(',', $placeholders) . ")";
+            } else {
+                $where[] = "cat.slug = :category";
+                $params[':category'] = $filters['category'];
+            }
         }
 
         // Location
@@ -204,22 +231,26 @@ class Product {
             }
         }
 
+        $joinsClause = !empty($joins) ? implode(' ', $joins) : '';
+
         // Get total count
-        $countQuery = "SELECT COUNT(*) as total 
+        $countQuery = "SELECT COUNT(DISTINCT p.id) as total 
                        FROM " . $this->table . " p 
+                       $joinsClause
                        WHERE $whereClause";
         $countStmt = $this->conn->prepare($countQuery);
         $countStmt->execute($params);
         $total = $countStmt->fetch()['total'];
 
         // Get data
-        $query = "SELECT p.*, 
+        $query = "SELECT DISTINCT p.*, 
                          u.full_name as seller_name,
                          c.name as category_name,
                          (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image
                   FROM " . $this->table . " p
                   LEFT JOIN users u ON p.seller_id = u.id
                   LEFT JOIN categories c ON p.category_id = c.id
+                  $joinsClause
                   WHERE $whereClause 
                   ORDER BY $orderBy 
                   LIMIT :limit OFFSET :offset";

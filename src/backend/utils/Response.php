@@ -27,6 +27,27 @@ class Response {
     }
 
     /**
+     * Created response (201)
+     */
+    public static function created($message = 'Created', $data = null) {
+        self::success($message, $data, 201);
+    }
+
+    /**
+     * Bad request response (400)
+     */
+    public static function badRequest($message = 'Bad Request', $errors = null) {
+        self::error($message, $errors, 400);
+    }
+
+    /**
+     * Method not allowed response (405)
+     */
+    public static function methodNotAllowed($message = 'Method Not Allowed') {
+        self::error($message, null, 405);
+    }
+
+    /**
      * Error response
      */
     public static function error($message = 'Error', $errors = null, $statusCode = 400) {

@@ -1,15 +1,92 @@
 
-  <!DOCTYPE html>
-  <html lang="en">
-    <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Second-Hand Clothing Marketplace</title>
-    </head>
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Primary Meta Tags -->
+    <title>SecondStyle - Chợ Đồ Cũ Chất Lượng | Mua Bán Quần Áo, Giày Dép, Phụ Kiện</title>
+    <meta name="title" content="SecondStyle - Chợ Đồ Cũ Chất Lượng | Mua Bán Quần Áo, Giày Dép, Phụ Kiện" />
+    <meta name="description" content="Mua bán quần áo cũ, giày dép, phụ kiện chính hãng uy tín. Thương lượng giá trực tiếp với người bán. Hàng nghìn sản phẩm chất lượng cao với giá tốt nhất." />
+    <meta name="keywords" content="đồ cũ, quần áo cũ, giày dép secondhand, phụ kiện thời trang, mua bán đồ cũ, thương lượng giá, quần áo nam, quần áo nữ" />
+    <meta name="author" content="SecondStyle" />
+    <meta name="robots" content="index, follow" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://secondstyle.vn/" />
+    <meta property="og:title" content="SecondStyle - Chợ Đồ Cũ Chất Lượng" />
+    <meta property="og:description" content="Mua bán quần áo cũ, giày dép, phụ kiện chính hãng uy tín. Thương lượng giá trực tiếp với người bán." />
+    <meta property="og:image" content="https://secondstyle.vn/og-image.jpg" />
+    <meta property="og:locale" content="vi_VN" />
+    <meta property="og:site_name" content="SecondStyle" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://secondstyle.vn/" />
+    <meta property="twitter:title" content="SecondStyle - Chợ Đồ Cũ Chất Lượng" />
+    <meta property="twitter:description" content="Mua bán quần áo cũ, giày dép, phụ kiện chính hãng uy tín." />
+    <meta property="twitter:image" content="https://secondstyle.vn/twitter-image.jpg" />
+    
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#9333ea" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SecondStyle" />
+    <link rel="apple-touch-icon" href="/icon-192x192.png" />
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    
+    <!-- Preconnect to external domains for performance -->
+    <link rel="preconnect" href="https://images.unsplash.com" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://secondstyle.vn/" />
+    
+    <!-- Schema.org structured data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "SecondStyle",
+      "description": "Chợ đồ cũ chất lượng - Mua bán quần áo, giày dép, phụ kiện",
+      "url": "https://secondstyle.vn",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://secondstyle.vn/products?search={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+  </head>
 
-    <body>
-      <div id="root"></div>
-      <script type="module" src="/src/main.tsx"></script>
-    </body>
-  </html>
-  
+  <body>
+    <div id="root" role="main" aria-label="Main content"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Register Service Worker - DISABLED for development -->
+    <script>
+      // Service Worker disabled during development to avoid blocking API calls
+      /*
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then(registration => {
+              console.log('SW registered:', registration);
+            })
+            .catch(error => {
+              console.log('SW registration failed:', error);
+            });
+        });
+      }
+      */
+    </script>
+  </body>
+</html>  

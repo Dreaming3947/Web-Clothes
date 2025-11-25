@@ -1,11 +1,37 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Shirt, Watch, Gem, TrendingUp, Shield, Recycle } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 
+const API_URL = 'http://127.0.0.1:8000/backend/api';
+
 export default function HomePage() {
   const { language } = useLanguage();
+  const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchFeaturedProducts();
+  }, []);
+
+  const fetchFeaturedProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/products.php?limit=6`);
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        setFeaturedProducts(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching featured products:', error);
+      setFeaturedProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const categories = [
     {
@@ -52,63 +78,6 @@ export default function HomePage() {
     },
   ];
 
-  const featuredProducts = [
-    {
-      id: '1',
-      name: 'Áo khoác denim vintage',
-      price: 450000,
-      originalPrice: 1200000,
-      image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400',
-      condition: { vi: 'Như mới', en: 'Like New' },
-      size: 'M',
-    },
-    {
-      id: '2',
-      name: 'Túi xách Louis Vuitton',
-      price: 8500000,
-      originalPrice: 15000000,
-      image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400',
-      condition: { vi: 'Đã qua sử dụng', en: 'Used' },
-      size: 'One Size',
-    },
-    {
-      id: '3',
-      name: 'Giày thể thao Nike Air',
-      price: 1200000,
-      originalPrice: 2800000,
-      image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400',
-      condition: { vi: 'Tốt', en: 'Good' },
-      size: '42',
-    },
-    {
-      id: '4',
-      name: 'Áo sơ mi silk cao cấp',
-      price: 350000,
-      originalPrice: 900000,
-      image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400',
-      condition: { vi: 'Như mới', en: 'Like New' },
-      size: 'L',
-    },
-    {
-      id: '5',
-      name: 'Váy maxi boho',
-      price: 550000,
-      originalPrice: 1500000,
-      image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400',
-      condition: { vi: 'Như mới', en: 'Like New' },
-      size: 'S',
-    },
-    {
-      id: '6',
-      name: 'Áo blazer công sở',
-      price: 680000,
-      originalPrice: 1800000,
-      image: 'https://images.unsplash.com/photo-1591369822096-ffd140ec948f?w=400',
-      condition: { vi: 'Tốt', en: 'Good' },
-      size: 'M',
-    },
-  ];
-
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -133,7 +102,7 @@ export default function HomePage() {
                   <ArrowRight className="ml-2 size-5" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10" asChild>
+              <Button size="lg" className="bg-white/20 text-white hover:bg-white hover:text-purple-600 border-2 border-white backdrop-blur-sm" asChild>
                 <Link to="/create-listing">
                   {language === 'vi' ? 'Bán đồ của bạn' : 'Sell Your Items'}
                 </Link>
@@ -198,32 +167,49 @@ export default function HomePage() {
             </Button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
-            {featuredProducts.map((product) => (
-              <Link key={product.id} to={`/products/${product.id}`}>
-                <Card className="group overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="aspect-square overflow-hidden">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                    />
-                  </div>
-                  <CardContent className="p-4">
-                    <h3 className="mb-2 line-clamp-2 text-sm">{product.name}</h3>
-                    <div className="space-y-1">
-                      <p className="text-purple-600">{product.price.toLocaleString('vi-VN')}₫</p>
-                      <p className="text-xs text-gray-500 line-through">{product.originalPrice.toLocaleString('vi-VN')}₫</p>
+            {featuredProducts.map((product) => {
+              // Get first image or use placeholder
+              const imageUrl = product.images && product.images.length > 0 
+                ? product.images[0] 
+                : 'https://via.placeholder.com/400x400?text=No+Image';
+              
+              // Map condition to display text
+              const conditionText: { [key: string]: { vi: string; en: string } } = {
+                'new': { vi: 'Mới', en: 'New' },
+                'like-new': { vi: 'Như mới', en: 'Like New' },
+                'good': { vi: 'Tốt', en: 'Good' },
+                'fair': { vi: 'Khá', en: 'Fair' }
+              };
+
+              return (
+                <Link key={product.id} to={`/products/${product.id}`}>
+                  <Card className="group overflow-hidden hover:shadow-lg transition-shadow">
+                    <div className="aspect-square overflow-hidden">
+                      <img
+                        src={imageUrl}
+                        alt={product.title}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      />
                     </div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">
-                        {product.condition[language]}
-                      </span>
-                      <span className="text-xs text-gray-500">Size {product.size}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+                    <CardContent className="p-4">
+                      <h3 className="mb-2 line-clamp-2 text-sm">{product.title}</h3>
+                      <div className="space-y-1">
+                        <p className="text-purple-600 font-semibold">{parseInt(product.price).toLocaleString('vi-VN')}₫</p>
+                        {product.original_price && (
+                          <p className="text-xs text-gray-500 line-through">{parseInt(product.original_price).toLocaleString('vi-VN')}₫</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">
+                          {conditionText[product.condition]?.[language] || product.condition}
+                        </span>
+                        {product.size && <span className="text-xs text-gray-500">Size {product.size}</span>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>

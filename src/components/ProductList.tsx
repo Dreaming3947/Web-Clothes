@@ -28,118 +28,13 @@ import {
   CollapsibleTrigger,
 } from './ui/collapsible';
 
-// Mock products data
-const MOCK_PRODUCTS = [
-  {
-    id: '1',
-    name: 'Áo khoác denim vintage',
-    price: 450000,
-    originalPrice: 1200000,
-    image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400',
-    condition: 'Like New',
-    size: 'M',
-    brand: 'Levi\'s',
-    category: 'women',
-    color: 'Blue',
-    seller: { name: 'Nguyen Van A', rating: 4.8 },
-  },
-  {
-    id: '2',
-    name: 'Túi xách Louis Vuitton',
-    price: 8500000,
-    originalPrice: 15000000,
-    image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400',
-    condition: 'Used',
-    size: 'One Size',
-    brand: 'Louis Vuitton',
-    category: 'accessories',
-    color: 'Brown',
-    seller: { name: 'Tran Thi B', rating: 4.9 },
-  },
-  {
-    id: '3',
-    name: 'Giày thể thao Nike Air',
-    price: 1200000,
-    originalPrice: 2800000,
-    image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400',
-    condition: 'Good',
-    size: '42',
-    brand: 'Nike',
-    category: 'shoes',
-    color: 'Red',
-    seller: { name: 'Le Van C', rating: 4.7 },
-  },
-  {
-    id: '4',
-    name: 'Áo sơ mi silk cao cấp',
-    price: 350000,
-    originalPrice: 900000,
-    image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400',
-    condition: 'Like New',
-    size: 'L',
-    brand: 'Zara',
-    category: 'men',
-    color: 'White',
-    seller: { name: 'Pham Thi D', rating: 4.6 },
-  },
-  {
-    id: '5',
-    name: 'Váy maxi boho',
-    price: 550000,
-    originalPrice: 1500000,
-    image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400',
-    condition: 'Like New',
-    size: 'S',
-    brand: 'H&M',
-    category: 'women',
-    color: 'Floral',
-    seller: { name: 'Nguyen Thi E', rating: 4.9 },
-  },
-  {
-    id: '6',
-    name: 'Áo blazer công sở',
-    price: 680000,
-    originalPrice: 1800000,
-    image: 'https://images.unsplash.com/photo-1591369822096-ffd140ec948f?w=400',
-    condition: 'Good',
-    size: 'M',
-    brand: 'Mango',
-    category: 'women',
-    color: 'Black',
-    seller: { name: 'Tran Van F', rating: 4.8 },
-  },
-  {
-    id: '7',
-    name: 'Quần jeans skinny',
-    price: 380000,
-    originalPrice: 1000000,
-    image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400',
-    condition: 'Like New',
-    size: '30',
-    brand: 'Uniqlo',
-    category: 'men',
-    color: 'Dark Blue',
-    seller: { name: 'Le Thi G', rating: 4.7 },
-  },
-  {
-    id: '8',
-    name: 'Áo hoodie streetwear',
-    price: 520000,
-    originalPrice: 1200000,
-    image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400',
-    condition: 'Good',
-    size: 'XL',
-    brand: 'Supreme',
-    category: 'men',
-    color: 'Gray',
-    seller: { name: 'Pham Van H', rating: 4.9 },
-  },
-];
+const API_URL = 'http://127.0.0.1:8000/backend/api';
 
 export default function ProductList() {
   const [searchParams] = useSearchParams();
   const { language, t } = useLanguage();
-  const [products, setProducts] = useState(MOCK_PRODUCTS);
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('newest');
   const [priceRange, setPriceRange] = useState([0, 10000000]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -147,11 +42,83 @@ export default function ProductList() {
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
 
+  // Fetch products from API
+  useEffect(() => {
+    fetchProducts();
+  }, [sortBy, priceRange, selectedCategories, selectedBrands, selectedSizes, selectedConditions]);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      
+      // Build query params
+      const params = new URLSearchParams();
+      
+      // Price range
+      if (priceRange[0] > 0) {
+        params.append('min_price', priceRange[0].toString());
+      }
+      if (priceRange[1] < 10000000) {
+        params.append('max_price', priceRange[1].toString());
+      }
+      
+      // Categories - need to map to category_id
+      // Note: This requires knowing the category IDs from database
+      // For now, we'll use category names if API supports it
+      if (selectedCategories.length > 0) {
+        selectedCategories.forEach(cat => {
+          params.append('category[]', cat);
+        });
+      }
+      
+      // Brands
+      if (selectedBrands.length > 0) {
+        selectedBrands.forEach(brand => {
+          params.append('brand[]', brand);
+        });
+      }
+      
+      // Sizes
+      if (selectedSizes.length > 0) {
+        selectedSizes.forEach(size => {
+          params.append('size[]', size);
+        });
+      }
+      
+      // Conditions
+      if (selectedConditions.length > 0) {
+        selectedConditions.forEach(condition => {
+          params.append('condition[]', condition);
+        });
+      }
+      
+      // Sort
+      if (sortBy) {
+        params.append('sort', sortBy);
+      }
+      
+      const queryString = params.toString();
+      const url = queryString ? `${API_URL}/products.php?${queryString}` : `${API_URL}/products.php`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        setProducts(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const categories = [
-    { id: 'women', label: { vi: 'Nữ', en: 'Women' } },
-    { id: 'men', label: { vi: 'Nam', en: 'Men' } },
-    { id: 'accessories', label: { vi: 'Phụ kiện', en: 'Accessories' } },
-    { id: 'shoes', label: { vi: 'Giày dép', en: 'Shoes' } },
+    { id: 'quan-ao-nu', label: { vi: 'Nữ', en: 'Women' } },
+    { id: 'quan-ao-nam', label: { vi: 'Nam', en: 'Men' } },
+    { id: 'phu-kien', label: { vi: 'Phụ kiện', en: 'Accessories' } },
+    { id: 'giay-dep', label: { vi: 'Giày dép', en: 'Shoes' } },
   ];
 
   const brands = ['Nike', 'Adidas', 'Zara', 'H&M', 'Uniqlo', 'Levi\'s', 'Mango'];
@@ -377,52 +344,77 @@ export default function ProductList() {
         {/* Products Grid */}
         <div className="flex-1">
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-            {products.map((product) => (
-              <Link key={product.id} to={`/products/${product.id}`}>
-                <Card className="group overflow-hidden hover:shadow-lg transition-all">
-                  <div className="relative aspect-square overflow-hidden">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-2 right-2 bg-white/90 hover:bg-white"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        // Add to favorites logic
-                      }}
-                    >
-                      <Heart className="size-4" />
-                    </Button>
-                    <div className="absolute top-2 left-2">
-                      <span className="bg-red-500 text-white text-xs px-2 py-1 rounded">
-                        -{Math.round((1 - product.price / product.originalPrice) * 100)}%
-                      </span>
+            {products.map((product) => {
+              // Get first image or use placeholder
+              const imageUrl = product.images && product.images.length > 0 
+                ? product.images[0] 
+                : 'https://via.placeholder.com/400x400?text=No+Image';
+              
+              // Map condition to display text
+              const conditionText: { [key: string]: { vi: string; en: string } } = {
+                'new': { vi: 'Mới', en: 'New' },
+                'like-new': { vi: 'Như mới', en: 'Like New' },
+                'good': { vi: 'Tốt', en: 'Good' },
+                'fair': { vi: 'Khá', en: 'Fair' }
+              };
+              
+              // Calculate discount percentage if original_price exists
+              const discountPercent = product.original_price 
+                ? Math.round((1 - product.price / product.original_price) * 100)
+                : 0;
+
+              return (
+                <Link key={product.id} to={`/products/${product.id}`}>
+                  <Card className="group overflow-hidden hover:shadow-lg transition-all">
+                    <div className="relative aspect-square overflow-hidden">
+                      <img
+                        src={imageUrl}
+                        alt={product.title}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 bg-white/90 hover:bg-white"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          // Add to favorites logic
+                        }}
+                      >
+                        <Heart className="size-4" />
+                      </Button>
+                      {discountPercent > 0 && (
+                        <div className="absolute top-2 left-2">
+                          <span className="bg-red-500 text-white text-xs px-2 py-1 rounded">
+                            -{discountPercent}%
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <CardContent className="p-4">
-                    <h3 className="mb-2 line-clamp-2">{product.name}</h3>
-                    <div className="space-y-1 mb-3">
-                      <p className="text-purple-600">{product.price.toLocaleString('vi-VN')}₫</p>
-                      <p className="text-sm text-gray-500 line-through">{product.originalPrice.toLocaleString('vi-VN')}₫</p>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-gray-600">
-                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded">
-                        {product.condition}
-                      </span>
-                      <span>Size {product.size}</span>
-                    </div>
-                    <div className="mt-2 pt-2 border-t flex items-center gap-2 text-xs text-gray-500">
-                      <span>{product.seller.name}</span>
-                      <span>⭐ {product.seller.rating}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+                    <CardContent className="p-4">
+                      <h3 className="mb-2 line-clamp-2">{product.title}</h3>
+                      <div className="space-y-1 mb-3">
+                        <p className="text-purple-600 font-semibold">{parseInt(product.price).toLocaleString('vi-VN')}₫</p>
+                        {product.original_price && (
+                          <p className="text-sm text-gray-500 line-through">{parseInt(product.original_price).toLocaleString('vi-VN')}₫</p>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-gray-600">
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded">
+                          {conditionText[product.condition]?.[language] || product.condition}
+                        </span>
+                        {product.size && <span>Size {product.size}</span>}
+                      </div>
+                      {product.seller_name && (
+                        <div className="mt-2 pt-2 border-t flex items-center gap-2 text-xs text-gray-500">
+                          <span>{product.seller_name}</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </div>

@@ -27,33 +27,7 @@ interface RegisterData {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo
-const MOCK_USERS = [
-  {
-    id: '1',
-    email: 'admin@example.com',
-    password: 'admin123',
-    name: 'Admin User',
-    role: 'admin' as const,
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100',
-  },
-  {
-    id: '2',
-    email: 'seller@example.com',
-    password: 'seller123',
-    name: 'Seller User',
-    role: 'seller' as const,
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100',
-  },
-  {
-    id: '3',
-    email: 'buyer@example.com',
-    password: 'buyer123',
-    name: 'Buyer User',
-    role: 'buyer' as const,
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100',
-  },
-];
+const API_URL = 'http://127.0.0.1:8000/backend/api';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -61,53 +35,132 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check if user is logged in (from localStorage)
+    const token = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    
+    if (token && storedUser) {
       setUser(JSON.parse(storedUser));
     }
     setLoading(false);
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Mock login - replace with actual API call
-    const foundUser = MOCK_USERS.find(
-      (u) => u.email === email && u.password === password
-    );
+    try {
+      const response = await fetch(`${API_URL}/auth.php?action=login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (!foundUser) {
-      throw new Error('Invalid email or password');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
+
+      const userData: User = {
+        id: data.data.user.id,
+        email: data.data.user.email,
+        name: data.data.user.full_name,
+        role: data.data.user.role,
+        avatar: data.data.user.avatar,
+        phone: data.data.user.phone,
+      };
+
+      setUser(userData);
+      localStorage.setItem('token', data.data.token);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } catch (error) {
+      throw error;
     }
-
-    const { password: _, ...userWithoutPassword } = foundUser;
-    setUser(userWithoutPassword);
-    localStorage.setItem('user', JSON.stringify(userWithoutPassword));
   };
 
   const register = async (data: RegisterData) => {
-    // Mock register - replace with actual API call
-    const newUser: User = {
-      id: String(Date.now()),
-      email: data.email,
-      name: data.name,
-      role: 'buyer',
-      phone: data.phone,
-    };
+    try {
+      const response = await fetch(`${API_URL}/auth.php?action=register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          full_name: data.name,
+          phone: data.phone,
+          role: 'buyer',
+        }),
+      });
 
-    setUser(newUser);
-    localStorage.setItem('user', JSON.stringify(newUser));
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Registration failed');
+      }
+
+      const userData: User = {
+        id: result.data.user.id,
+        email: result.data.user.email,
+        name: result.data.user.full_name,
+        role: result.data.user.role,
+        phone: data.phone,
+      };
+
+      setUser(userData);
+      localStorage.setItem('token', result.data.token);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } catch (error) {
+      throw error;
+    }
   };
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('token');
     localStorage.removeItem('user');
   };
 
   const updateProfile = async (data: Partial<User>) => {
     if (!user) return;
 
-    const updatedUser = { ...user, ...data };
-    setUser(updatedUser);
-    localStorage.setItem('user', JSON.stringify(updatedUser));
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${API_URL}/auth.php?action=update-profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          full_name: data.name,
+          phone: data.phone,
+          avatar: data.avatar,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Update failed');
+      }
+
+      // Update local state with response data
+      const updatedUser: User = {
+        id: result.data.user.id,
+        email: result.data.user.email,
+        name: result.data.user.full_name,
+        role: result.data.user.role,
+        avatar: result.data.user.avatar,
+        phone: result.data.user.phone,
+      };
+
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    } catch (error) {
+      throw error;
+    }
   };
 
   return (

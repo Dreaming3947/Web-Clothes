@@ -4,14 +4,16 @@
  * Xử lý đăng ký, đăng nhập, đăng xuất
  */
 
-header('Content-Type: application/json; charset=utf-8');
+// CORS Headers - must be first
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
+header('Access-Control-Allow-Methods: POST, GET, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Content-Type: application/json; charset=utf-8');
 
+// Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
-    exit;
+    exit();
 }
 
 require_once __DIR__ . '/../config/database.php';
@@ -243,6 +245,61 @@ else if ($method === 'POST' && isset($_GET['action']) && $_GET['action'] === 've
         Response::success('Xác thực email thành công');
     } else {
         Response::error('Token không hợp lệ', null, 400);
+    }
+}
+
+// ============================================
+// UPDATE PROFILE
+// ============================================
+else if ($method === 'PUT' && isset($_GET['action']) && $_GET['action'] === 'update-profile') {
+    $currentUser = Auth::requireAuth();
+
+    // Prepare update data
+    $updateData = [];
+
+    if (isset($request['full_name'])) {
+        $validator->required($request['full_name'], 'full_name');
+        if (!$validator->hasErrors()) {
+            $updateData['full_name'] = Validation::sanitizeString($request['full_name']);
+        }
+    }
+
+    if (isset($request['phone'])) {
+        $updateData['phone'] = Validation::sanitizeString($request['phone']);
+    }
+
+    if (isset($request['avatar'])) {
+        $updateData['avatar'] = Validation::sanitizeString($request['avatar']);
+    }
+
+    if (isset($request['bio'])) {
+        $updateData['bio'] = Validation::sanitizeString($request['bio']);
+    }
+
+    if ($validator->hasErrors()) {
+        Response::validationError($validator->getErrors());
+    }
+
+    if (empty($updateData)) {
+        Response::error('Không có dữ liệu để cập nhật', null, 400);
+    }
+
+    if ($userModel->update($currentUser['user_id'], $updateData)) {
+        // Get updated user
+        $updatedUser = $userModel->getById($currentUser['user_id']);
+        
+        Response::success('Cập nhật thông tin thành công', [
+            'user' => [
+                'id' => $updatedUser['id'],
+                'email' => $updatedUser['email'],
+                'full_name' => $updatedUser['full_name'],
+                'phone' => $updatedUser['phone'],
+                'avatar' => $updatedUser['avatar'],
+                'role' => $updatedUser['role']
+            ]
+        ]);
+    } else {
+        Response::serverError('Cập nhật thất bại');
     }
 }
 

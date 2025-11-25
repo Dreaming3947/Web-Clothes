@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export default function Register() {
   const { language, t } = useLanguage();
@@ -74,7 +74,9 @@ export default function Register() {
                 </Label>
                 <Input
                   id="name"
+                  name="name"
                   type="text"
+                  autoComplete="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder={language === 'vi' ? 'Nguyễn Văn A' : 'John Doe'}
@@ -86,7 +88,9 @@ export default function Register() {
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="your@email.com"
@@ -100,7 +104,9 @@ export default function Register() {
                 </Label>
                 <Input
                   id="phone"
+                  name="phone"
                   type="tel"
+                  autoComplete="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="0123456789"
@@ -113,7 +119,9 @@ export default function Register() {
                 </Label>
                 <Input
                   id="password"
+                  name="password"
                   type="password"
+                  autoComplete="new-password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   placeholder="••••••••"
@@ -128,7 +136,9 @@ export default function Register() {
                 </Label>
                 <Input
                   id="confirmPassword"
+                  name="confirmPassword"
                   type="password"
+                  autoComplete="new-password"
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                   placeholder="••••••••"
@@ -138,8 +148,8 @@ export default function Register() {
               </div>
 
               <div className="flex items-start gap-2 text-sm">
-                <input type="checkbox" className="mt-1" required />
-                <label>
+                <input id="terms" name="terms" type="checkbox" className="mt-1" required />
+                <label htmlFor="terms">
                   {language === 'vi' ? (
                     <>
                       Tôi đồng ý với{' '}

@@ -64,9 +64,11 @@ CREATE TABLE products (
     title VARCHAR(255) NOT NULL,
     slug VARCHAR(255) UNIQUE NOT NULL,
     description TEXT NOT NULL,
+    specifications JSON COMMENT 'Thông số kỹ thuật: {\"Chất liệu\": \"Cotton\", \"Xuất xứ\": \"Việt Nam\", ...}',
     price DECIMAL(15,2) NOT NULL,
     original_price DECIMAL(15,2),
-    `condition` ENUM('new', 'like-new', 'good', 'fair') NOT NULL,
+    `condition` ENUM('new', 'like-new', 'good', 'fair', 'used', 'damaged', 'repaired') NOT NULL,
+    condition_detail TEXT COMMENT 'Mô tả chi tiết tình trạng sản phẩm',
     size VARCHAR(50),
     brand VARCHAR(100),
     color VARCHAR(50),
@@ -76,6 +78,8 @@ CREATE TABLE products (
     location_address TEXT,
     status ENUM('draft', 'pending', 'approved', 'rejected', 'sold', 'deleted') DEFAULT 'pending',
     rejection_reason TEXT,
+    allow_negotiation BOOLEAN DEFAULT TRUE COMMENT 'Cho phép thương lượng giá',
+    min_acceptable_price DECIMAL(15,2) COMMENT 'Giá thấp nhất người bán chấp nhận',
     views_count INT DEFAULT 0,
     favorites_count INT DEFAULT 0,
     is_featured BOOLEAN DEFAULT FALSE,
@@ -248,6 +252,8 @@ CREATE TABLE messages (
     sender_id INT NOT NULL,
     receiver_id INT NOT NULL,
     message TEXT NOT NULL,
+    message_type ENUM('text', 'price_offer', 'image', 'system') DEFAULT 'text',
+    price_offer DECIMAL(15,2) COMMENT 'Giá đề xuất nếu là tin nhắn thương lượng',
     attachments JSON,
     is_read BOOLEAN DEFAULT FALSE,
     read_at DATETIME,
@@ -259,6 +265,33 @@ CREATE TABLE messages (
     INDEX idx_sender (sender_id),
     INDEX idx_receiver (receiver_id),
     INDEX idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================
+-- BẢNG PRICE_NEGOTIATIONS - Thương lượng giá
+-- =============================================
+CREATE TABLE price_negotiations (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    buyer_id INT NOT NULL,
+    seller_id INT NOT NULL,
+    thread_id INT NOT NULL,
+    offered_price DECIMAL(15,2) NOT NULL,
+    message TEXT,
+    status ENUM('pending', 'accepted', 'rejected', 'counter_offered') DEFAULT 'pending',
+    counter_price DECIMAL(15,2) COMMENT 'Giá phản đề xuất của người bán',
+    counter_message TEXT,
+    responded_at DATETIME,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (seller_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (thread_id) REFERENCES message_threads(id) ON DELETE CASCADE,
+    INDEX idx_product (product_id),
+    INDEX idx_buyer (buyer_id),
+    INDEX idx_seller (seller_id),
+    INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================

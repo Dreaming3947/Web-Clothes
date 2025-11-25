@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Heart, Share2, MessageCircle, Shield, Package, RefreshCw, Star, ChevronLeft } from 'lucide-react';
+import { Heart, Share2, MessageCircle, Shield, Package, RefreshCw, Star, ChevronLeft, CheckCircle } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
@@ -9,7 +9,10 @@ import { Card, CardContent } from './ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+import PriceNegotiation from './PriceNegotiation';
+
+const API_URL = 'http://127.0.0.1:8000/backend/api';
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -18,82 +21,91 @@ export default function ProductDetail() {
   const { addItem } = useCart();
   const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState(0);
-  const [selectedSize, setSelectedSize] = useState('');
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock product data
-  const product = {
-    id: id || '1',
-    name: 'Áo khoác denim vintage cao cấp',
-    price: 450000,
-    originalPrice: 1200000,
-    images: [
-      'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800',
-      'https://images.unsplash.com/photo-1523398002811-999ca8dec234?w=800',
-      'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800',
-      'https://images.unsplash.com/photo-1601333144130-8cbb312386b6?w=800',
-    ],
-    condition: 'Like New',
-    brand: 'Levi\'s',
-    category: 'Women',
-    availableSizes: ['S', 'M', 'L'],
-    color: 'Blue',
-    material: 'Cotton Denim',
-    description: language === 'vi'
-      ? 'Áo khoác denim vintage của Levi\'s, tình trạng như mới. Chất liệu cotton cao cấp, bền đẹp. Phù hợp cho mùa thu đông. Sản phẩm đã được giặt sạch và khử trùng.'
-      : 'Vintage Levi\'s denim jacket in like-new condition. Premium cotton material, durable and beautiful. Perfect for fall and winter. Item has been cleaned and sanitized.',
-    seller: {
-      id: '1',
-      name: 'Nguyen Van A',
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100',
-      rating: 4.8,
-      totalSales: 156,
-      responseRate: 98,
-      joinedDate: '2023-01-15',
-    },
-    specifications: {
-      [language === 'vi' ? 'Thương hiệu' : 'Brand']: 'Levi\'s',
-      [language === 'vi' ? 'Chất liệu' : 'Material']: 'Cotton Denim',
-      [language === 'vi' ? 'Màu sắc' : 'Color']: language === 'vi' ? 'Xanh denim' : 'Denim Blue',
-      [language === 'vi' ? 'Tình trạng' : 'Condition']: 'Like New (95%)',
-      [language === 'vi' ? 'Xuất xứ' : 'Origin']: language === 'vi' ? 'Mỹ' : 'USA',
-    },
-    reviews: [
-      {
-        id: '1',
-        user: 'Tran Thi B',
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100',
-        rating: 5,
-        comment: language === 'vi' 
-          ? 'Sản phẩm rất đẹp, chất lượng tốt. Người bán nhiệt tình!'
-          : 'Great product, good quality. Seller is very helpful!',
-        date: '2024-11-15',
-      },
-      {
-        id: '2',
-        user: 'Le Van C',
-        avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100',
-        rating: 5,
-        comment: language === 'vi'
-          ? 'Giao hàng nhanh, sản phẩm đúng mô tả. Sẽ ủng hộ shop tiếp!'
-          : 'Fast delivery, product as described. Will support again!',
-        date: '2024-11-10',
-      },
-    ],
+  useEffect(() => {
+    if (id) {
+      fetchProduct();
+    }
+  }, [id]);
+
+  const fetchProduct = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/products.php?id=${id}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Map condition to label
+        const conditionMap = {
+          'new': { vi: 'Mới', en: 'New' },
+          'like-new': { vi: 'Như mới', en: 'Like New' },
+          'good': { vi: 'Tốt', en: 'Good' },
+          'fair': { vi: 'Khá', en: 'Fair' },
+          'used': { vi: 'Đã sử dụng', en: 'Used' },
+          'damaged': { vi: 'Hư hỏng', en: 'Damaged' },
+          'repaired': { vi: 'Đã sửa chữa', en: 'Repaired' }
+        };
+
+        // Map API fields to component fields
+        const mappedProduct = {
+          ...data.data,
+          name: data.data.title,
+          originalPrice: data.data.original_price || data.data.price,
+          image: data.data.images?.[0] || '',
+          category: data.data.category_name || '',
+          conditionLabel: conditionMap[data.data.condition]?.[language] || data.data.condition,
+          conditionDetail: data.data.condition_detail || '',
+          minAcceptablePrice: data.data.min_acceptable_price || data.data.price * 0.8,
+          allowNegotiation: data.data.allow_negotiation !== false,
+          specifications: data.data.specifications || {},
+          reviews: [], // TODO: Fetch reviews from API
+          seller: {
+            id: data.data.seller_id,
+            name: data.data.seller_name,
+            avatar: data.data.seller_avatar,
+            rating: 4.8, // TODO: Get from reviews
+            totalSales: 150, // TODO: Get from orders
+            responseRate: 95, // TODO: Get from messages
+          }
+        };
+        setProduct(mappedProduct);
+      } else {
+        toast.error(language === 'vi' ? 'Không tìm thấy sản phẩm' : 'Product not found');
+        navigate('/products');
+      }
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      toast.error(language === 'vi' ? 'Lỗi tải sản phẩm' : 'Error loading product');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleAddToCart = () => {
-    if (!selectedSize) {
-      toast.error(language === 'vi' ? 'Vui lòng chọn size' : 'Please select a size');
-      return;
-    }
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">{language === 'vi' ? 'Đang tải...' : 'Loading...'}</div>
+      </div>
+    );
+  }
 
+  if (!product) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">{language === 'vi' ? 'Không tìm thấy sản phẩm' : 'Product not found'}</div>
+      </div>
+    );
+  }
+
+  const handleAddToCart = () => {
     addItem({
-      id: `${product.id}-${selectedSize}`,
+      id: product.id,
       productId: product.id,
       name: product.name,
       price: product.price,
       image: product.images[0],
-      size: selectedSize,
       sellerId: product.seller.id,
     });
 
@@ -106,21 +118,48 @@ export default function ProductDetail() {
       return;
     }
 
-    if (!selectedSize) {
-      toast.error(language === 'vi' ? 'Vui lòng chọn size' : 'Please select a size');
-      return;
-    }
-
     handleAddToCart();
     navigate('/checkout');
   };
 
-  const handleContactSeller = () => {
+  const handleContactSeller = async () => {
     if (!user) {
       navigate('/login');
       return;
     }
-    navigate('/messages');
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/messages.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          other_user_id: product.seller.id,
+          product_id: product.id,
+          message: `Xin chào, tôi quan tâm đến sản phẩm "${product.name}"`,
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('Server error:', text);
+        toast.error('Lỗi server: ' + response.status);
+        return;
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        navigate('/messages');
+      } else {
+        toast.error(data.message || 'Không thể tạo tin nhắn');
+      }
+    } catch (error) {
+      console.error('Error creating message thread:', error);
+      toast.error('Không thể tạo tin nhắn');
+    }
   };
 
   return (
@@ -191,28 +230,19 @@ export default function ProductDetail() {
           </div>
 
           {/* Condition */}
-          <div className="flex items-center gap-2 mb-6">
-            <span className="text-gray-600">{t('condition')}:</span>
-            <Badge variant="secondary" className="bg-green-100 text-green-800">
-              {product.condition}
-            </Badge>
-          </div>
-
-          {/* Size Selection */}
           <div className="mb-6">
-            <label className="block mb-3">{t('size')}</label>
-            <div className="flex gap-3">
-              {product.availableSizes.map((size) => (
-                <Button
-                  key={size}
-                  variant={selectedSize === size ? 'default' : 'outline'}
-                  onClick={() => setSelectedSize(size)}
-                  className="w-16"
-                >
-                  {size}
-                </Button>
-              ))}
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-gray-600">{t('condition')}:</span>
+              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                <CheckCircle className="size-3 mr-1" />
+                {product.conditionLabel}
+              </Badge>
             </div>
+            {product.conditionDetail && (
+              <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                {product.conditionDetail}
+              </p>
+            )}
           </div>
 
           {/* Action Buttons */}
@@ -234,14 +264,22 @@ export default function ProductDetail() {
             </Button>
           </div>
 
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleContactSeller}
-          >
-            <MessageCircle className="size-4 mr-2" />
-            {t('contactSeller')}
-          </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="outline"
+              onClick={handleContactSeller}
+            >
+              <MessageCircle className="size-4 mr-2" />
+              {t('contactSeller')}
+            </Button>
+            <PriceNegotiation
+              productId={product.id}
+              currentPrice={product.price}
+              minAcceptablePrice={product.minAcceptablePrice}
+              sellerId={product.seller.id}
+              allowNegotiation={product.allowNegotiation}
+            />
+          </div>
 
           {/* Trust Badges */}
           <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t">

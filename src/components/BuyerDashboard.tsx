@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Package, Heart, Star, MapPin, Clock } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -8,87 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 export default function BuyerDashboard() {
   const { language, t } = useLanguage();
+  const { user } = useAuth();
 
-  const orders = [
-    {
-      id: 'ORD001',
-      product: {
-        name: 'Áo khoác denim vintage',
-        image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200',
-        price: 450000,
-        size: 'M',
-      },
-      seller: 'Nguyen Van A',
-      status: 'delivered',
-      orderDate: '2024-11-15',
-      deliveryDate: '2024-11-18',
-    },
-    {
-      id: 'ORD002',
-      product: {
-        name: 'Giày thể thao Nike Air',
-        image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200',
-        price: 1200000,
-        size: '42',
-      },
-      seller: 'Tran Thi B',
-      status: 'shipping',
-      orderDate: '2024-11-18',
-      deliveryDate: '2024-11-22',
-    },
-    {
-      id: 'ORD003',
-      product: {
-        name: 'Túi xách Louis Vuitton',
-        image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=200',
-        price: 8500000,
-        size: 'One Size',
-      },
-      seller: 'Le Van C',
-      status: 'processing',
-      orderDate: '2024-11-20',
-      deliveryDate: '2024-11-25',
-    },
-  ];
-
-  const favorites = [
-    {
-      id: '1',
-      name: 'Váy maxi boho',
-      price: 550000,
-      originalPrice: 1500000,
-      image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400',
-      condition: 'Like New',
-      seller: 'Nguyen Thi E',
-    },
-    {
-      id: '2',
-      name: 'Áo blazer công sở',
-      price: 680000,
-      originalPrice: 1800000,
-      image: 'https://images.unsplash.com/photo-1591369822096-ffd140ec948f?w=400',
-      condition: 'Good',
-      seller: 'Tran Van F',
-    },
-    {
-      id: '3',
-      name: 'Quần jeans skinny',
-      price: 380000,
-      originalPrice: 1000000,
-      image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400',
-      condition: 'Like New',
-      seller: 'Le Thi G',
-    },
-    {
-      id: '4',
-      name: 'Áo hoodie streetwear',
-      price: 520000,
-      originalPrice: 1200000,
-      image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400',
-      condition: 'Good',
-      seller: 'Pham Van H',
-    },
-  ];
+  // TODO: Replace with API call to fetch user's orders
+  const orders: any[] = [];
+  
+  // TODO: Replace with API call to fetch user's favorites
+  const favorites: any[] = [];
 
   const getStatusColor = (status: string) => {
     switch (status) {

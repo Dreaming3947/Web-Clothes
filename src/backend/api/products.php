@@ -68,7 +68,15 @@ if ($method === 'GET' && !isset($_GET['id'])) {
     }
     
     if (isset($_GET['brand'])) {
-        $filters['brand'] = Validation::sanitizeString($_GET['brand']);
+        $filters['brand'] = is_array($_GET['brand']) 
+            ? $_GET['brand'] 
+            : [Validation::sanitizeString($_GET['brand'])];
+    }
+    
+    if (isset($_GET['category'])) {
+        $filters['category'] = is_array($_GET['category']) 
+            ? $_GET['category'] 
+            : [$_GET['category']];
     }
     
     if (isset($_GET['location_city'])) {

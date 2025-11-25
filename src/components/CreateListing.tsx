@@ -8,25 +8,32 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export default function CreateListing() {
   const { language } = useLanguage();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    conditionDetail: '',
     category: '',
     brand: '',
     condition: '',
-    size: '',
     color: '',
     material: '',
     price: '',
     originalPrice: '',
+    allowNegotiation: true,
+    minAcceptablePrice: '',
+    specifications: {} as Record<string, string>,
   });
+
+  const [specKey, setSpecKey] = useState('');
+  const [specValue, setSpecValue] = useState('');
 
   const categories = [
     { id: 'women', label: { vi: 'Thời trang Nữ', en: "Women's Fashion" } },
@@ -43,13 +50,46 @@ export default function CreateListing() {
     { id: 'used', label: { vi: 'Đã qua sử dụng', en: 'Used' } },
   ];
 
-  const sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'One Size'];
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    // Mock image upload - in production, upload to server/cloud storage
-    const newImages = files.map((file) => URL.createObjectURL(file));
-    setImages([...images, ...newImages].slice(0, 5)); // Max 5 images
+    
+    if (files.length === 0) return;
+    
+    if (images.length + files.length > 5) {
+      toast.error(language === 'vi' ? 'Tối đa 5 ảnh' : 'Maximum 5 images');
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append('images[]', file);
+      });
+
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://127.0.0.1:8000/backend/api/upload.php?type=product', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Upload failed');
+      }
+
+      setImages([...images, ...result.data.urls].slice(0, 5));
+      toast.success(language === 'vi' ? `Đã tải lên ${result.data.count} ảnh` : `Uploaded ${result.data.count} images`);
+    } catch (error: any) {
+      toast.error(error.message || (language === 'vi' ? 'Upload thất bại' : 'Upload failed'));
+    } finally {
+      setUploading(false);
+    }
   };
 
   const removeImage = (index: number) => {
@@ -112,10 +152,12 @@ export default function CreateListing() {
                   </div>
                 ))}
                 {images.length < 5 && (
-                  <label className="aspect-square rounded-lg border-2 border-dashed border-gray-300 hover:border-purple-600 cursor-pointer flex flex-col items-center justify-center gap-2 transition-colors">
-                    <Upload className="size-8 text-gray-400" />
+                  <label className={`aspect-square rounded-lg border-2 border-dashed ${uploading ? 'border-purple-600 bg-purple-50' : 'border-gray-300 hover:border-purple-600'} cursor-pointer flex flex-col items-center justify-center gap-2 transition-colors`}>
+                    <Upload className={`size-8 ${uploading ? 'text-purple-600 animate-pulse' : 'text-gray-400'}`} />
                     <span className="text-xs text-gray-500 text-center px-2">
-                      {language === 'vi' ? 'Thêm ảnh' : 'Add Image'}
+                      {uploading 
+                        ? (language === 'vi' ? 'Đang tải...' : 'Uploading...') 
+                        : (language === 'vi' ? 'Thêm ảnh' : 'Add Image')}
                     </span>
                     <input
                       type="file"
@@ -123,6 +165,7 @@ export default function CreateListing() {
                       multiple
                       onChange={handleImageUpload}
                       className="hidden"
+                      disabled={uploading}
                     />
                   </label>
                 )}
@@ -210,7 +253,7 @@ export default function CreateListing() {
               <CardTitle>{language === 'vi' ? 'Chi tiết sản phẩm' : 'Product Details'}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-3 gap-4">
+              <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="condition">
                     {language === 'vi' ? 'Tình trạng' : 'Condition'} *
@@ -223,22 +266,6 @@ export default function CreateListing() {
                       {conditions.map((cond) => (
                         <SelectItem key={cond.id} value={cond.id}>
                           {cond.label[language]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="size">Size *</Label>
-                  <Select value={formData.size} onValueChange={(value) => setFormData({ ...formData, size: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={language === 'vi' ? 'Chọn size' : 'Select size'} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sizes.map((size) => (
-                        <SelectItem key={size} value={size}>
-                          {size}
                         </SelectItem>
                       ))}
                     </SelectContent>

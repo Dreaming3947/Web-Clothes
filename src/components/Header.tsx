@@ -48,7 +48,10 @@ export default function Header() {
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
               <input
+                id="search-desktop"
+                name="search"
                 type="text"
+                autoComplete="off"
                 placeholder={t('search') + '...'}
                 className="w-full pl-11 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
@@ -218,7 +221,10 @@ export default function Header() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
               <input
+                id="search-mobile"
+                name="search"
                 type="text"
+                autoComplete="off"
                 placeholder={t('search') + '...'}
                 className="w-full pl-11 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               />

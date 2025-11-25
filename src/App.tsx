@@ -17,7 +17,7 @@ import Profile from './components/Profile';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
-import { Toaster } from 'sonner@2.0.3';
+import { Toaster } from 'sonner';
 
 // Protected Route Component
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {

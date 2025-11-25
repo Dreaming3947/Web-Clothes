@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Camera } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,14 +8,15 @@ import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export default function Profile() {
   const { language, t } = useLanguage();
   const { user, updateProfile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
-    name: user?.name || '',
+    name: user?.name || user?.email?.split('@')[0] || '',
     email: user?.email || '',
     phone: user?.phone || '',
     avatar: user?.avatar || '',
@@ -26,6 +27,54 @@ export default function Profile() {
     newPassword: '',
     confirmPassword: '',
   });
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(language === 'vi' ? 'Kích thước ảnh tối đa 5MB' : 'Image size must be less than 5MB');
+        return;
+      }
+
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast.error(language === 'vi' ? 'Vui lòng chọn file ảnh' : 'Please select an image file');
+        return;
+      }
+
+      try {
+        // Upload to server
+        const uploadFormData = new FormData();
+        uploadFormData.append('avatar', file);
+
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://127.0.0.1:8000/backend/api/upload.php?type=avatar', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: uploadFormData,
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.message || 'Upload failed');
+        }
+
+        // Update avatar URL
+        setFormData({ ...formData, avatar: result.data.url });
+        toast.success(language === 'vi' ? 'Ảnh đã được tải lên. Nhấn Lưu để cập nhật.' : 'Image uploaded. Click Save to update.');
+      } catch (error: any) {
+        toast.error(error.message || (language === 'vi' ? 'Upload thất bại' : 'Upload failed'));
+      }
+    }
+  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,12 +129,19 @@ export default function Profile() {
               <form onSubmit={handleUpdateProfile} className="space-y-6">
                 {/* Avatar */}
                 <div className="flex items-center gap-6">
-                  <Avatar className="size-24">
+                  <Avatar className="size-24 cursor-pointer" onClick={handleAvatarClick}>
                     <AvatarImage src={formData.avatar} />
-                    <AvatarFallback className="text-2xl">{formData.name[0]}</AvatarFallback>
+                    <AvatarFallback className="text-2xl">{formData.name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <Button type="button" variant="outline" size="sm">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarChange}
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={handleAvatarClick}>
                       <Camera className="size-4 mr-2" />
                       {language === 'vi' ? 'Đổi ảnh' : 'Change Photo'}
                     </Button>

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Plus, Eye, Edit, Trash2, Package, DollarSign, TrendingUp, MessageSquare } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -8,35 +9,37 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 export default function SellerDashboard() {
   const { language, t } = useLanguage();
+  const { user } = useAuth();
 
+  // TODO: Replace with API call to fetch seller's statistics
   const stats = [
     {
       title: language === 'vi' ? 'Tổng doanh thu' : 'Total Revenue',
-      value: '45,250,000₫',
-      change: '+12.5%',
+      value: '0₫',
+      change: '0%',
       icon: DollarSign,
       color: 'text-green-600',
       bgColor: 'bg-green-100',
     },
     {
       title: language === 'vi' ? 'Sản phẩm đang bán' : 'Active Listings',
-      value: '24',
-      change: '+3',
+      value: '0',
+      change: '0',
       icon: Package,
       color: 'text-blue-600',
       bgColor: 'bg-blue-100',
     },
     {
       title: language === 'vi' ? 'Đơn hàng mới' : 'New Orders',
-      value: '8',
-      change: '+2',
+      value: '0',
+      change: '0',
       icon: TrendingUp,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100',
     },
     {
       title: language === 'vi' ? 'Tin nhắn chưa đọc' : 'Unread Messages',
-      value: '5',
+      value: '0',
       change: '',
       icon: MessageSquare,
       color: 'text-orange-600',
@@ -44,75 +47,11 @@ export default function SellerDashboard() {
     },
   ];
 
-  const listings = [
-    {
-      id: '1',
-      name: 'Áo khoác denim vintage',
-      price: 450000,
-      image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200',
-      status: 'active',
-      views: 234,
-      likes: 45,
-      createdAt: '2024-11-15',
-    },
-    {
-      id: '2',
-      name: 'Túi xách Louis Vuitton',
-      price: 8500000,
-      image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=200',
-      status: 'sold',
-      views: 456,
-      likes: 89,
-      createdAt: '2024-11-10',
-    },
-    {
-      id: '3',
-      name: 'Giày thể thao Nike Air',
-      price: 1200000,
-      image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200',
-      status: 'active',
-      views: 189,
-      likes: 32,
-      createdAt: '2024-11-12',
-    },
-    {
-      id: '4',
-      name: 'Áo sơ mi silk cao cấp',
-      price: 350000,
-      image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=200',
-      status: 'pending',
-      views: 67,
-      likes: 12,
-      createdAt: '2024-11-18',
-    },
-  ];
+  // TODO: Replace with API call to fetch seller's listings
+  const listings: any[] = [];
 
-  const orders = [
-    {
-      id: 'ORD001',
-      product: 'Áo khoác denim vintage',
-      buyer: 'Nguyen Van A',
-      price: 450000,
-      status: 'pending',
-      date: '2024-11-20',
-    },
-    {
-      id: 'ORD002',
-      product: 'Giày thể thao Nike Air',
-      buyer: 'Tran Thi B',
-      price: 1200000,
-      status: 'processing',
-      date: '2024-11-19',
-    },
-    {
-      id: 'ORD003',
-      product: 'Túi xách Louis Vuitton',
-      buyer: 'Le Van C',
-      price: 8500000,
-      status: 'completed',
-      date: '2024-11-18',
-    },
-  ];
+  // TODO: Replace with API call to fetch seller's orders
+  const orders: any[] = [];
 
   const getStatusColor = (status: string) => {
     switch (status) {

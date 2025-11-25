@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# Disallow admin pages
+Disallow: /admin
+Disallow: /admin-dashboard
+
+# Disallow private pages
+Disallow: /messages
+Disallow: /checkout
+Disallow: /seller-dashboard
+Disallow: /buyer-dashboard
+Disallow: /profile/edit
+
+# Sitemap
+Sitemap: https://secondstyle.vn/sitemap.xml

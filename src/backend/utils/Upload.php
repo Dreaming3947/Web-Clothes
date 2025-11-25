@@ -6,6 +6,13 @@
 
 class Upload {
     /**
+     * Upload single image (alias for uploadImage)
+     */
+    public static function uploadSingleImage($file, $directory, $prefix = '') {
+        return self::uploadImage($file, $directory, $prefix);
+    }
+
+    /**
      * Upload single image
      */
     public static function uploadImage($file, $directory, $prefix = '') {

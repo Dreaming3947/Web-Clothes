@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export default function Login() {
   const { language, t } = useLanguage();
@@ -58,7 +58,9 @@ export default function Login() {
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="your@email.com"
@@ -72,7 +74,9 @@ export default function Login() {
                 </Label>
                 <Input
                   id="password"
+                  name="password"
                   type="password"
+                  autoComplete="current-password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   placeholder="••••••••"
@@ -81,8 +85,8 @@ export default function Login() {
               </div>
 
               <div className="flex items-center justify-between text-sm">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" className="rounded" />
+                <label htmlFor="remember" className="flex items-center gap-2 cursor-pointer">
+                  <input id="remember" name="remember" type="checkbox" className="rounded" />
                   <span>{language === 'vi' ? 'Ghi nhớ đăng nhập' : 'Remember me'}</span>
                 </label>
                 <Link to="/forgot-password" className="text-purple-600 hover:underline">
