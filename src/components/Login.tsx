@@ -16,6 +16,7 @@ export default function Login() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    rememberMe: false,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,7 +24,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await login(formData.email, formData.password);
+      await login(formData.email, formData.password, formData.rememberMe);
       toast.success(language === 'vi' ? 'Đăng nhập thành công!' : 'Login successful!');
       navigate('/');
     } catch (error: any) {
@@ -86,7 +87,14 @@ export default function Login() {
 
               <div className="flex items-center justify-between text-sm">
                 <label htmlFor="remember" className="flex items-center gap-2 cursor-pointer">
-                  <input id="remember" name="remember" type="checkbox" className="rounded" />
+                  <input 
+                    id="remember" 
+                    name="remember" 
+                    type="checkbox" 
+                    className="rounded"
+                    checked={formData.rememberMe}
+                    onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
+                  />
                   <span>{language === 'vi' ? 'Ghi nhớ đăng nhập' : 'Remember me'}</span>
                 </label>
                 <Link to="/forgot-password" className="text-purple-600 hover:underline">
@@ -122,18 +130,6 @@ export default function Login() {
                 <Link to="/register" className="text-purple-600 hover:underline">
                   {t('register')}
                 </Link>
-              </div>
-            </div>
-
-            {/* Demo Accounts */}
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm mb-2">
-                {language === 'vi' ? '🎯 Tài khoản demo:' : '🎯 Demo accounts:'}
-              </p>
-              <div className="text-xs space-y-1 text-gray-700">
-                <p>Admin: admin@example.com / admin123</p>
-                <p>Seller: seller@example.com / seller123</p>
-                <p>Buyer: buyer@example.com / buyer123</p>
               </div>
             </div>
           </CardContent>

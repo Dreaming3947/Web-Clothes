@@ -1,53 +1,107 @@
 import { useState } from 'react';
-import { Trash2, Minus, Plus, CreditCard, Truck, MapPin } from 'lucide-react';
+import { Trash2, CreditCard, Truck, MapPin } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Separator } from './ui/separator';
-import { toast } from 'sonner@2.0.3';
-import type { User, CartItem } from '../App';
+import { toast } from 'sonner';
+import { useAuth } from '../contexts/AuthContext';
+import { useCart } from '../contexts/CartContext';
+import { useNavigate } from 'react-router-dom';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
-type CheckoutPageProps = {
-  cart: CartItem[];
-  user: User | null;
-  onUpdateQuantity: (productId: string, quantity: number) => void;
-  onRemoveItem: (productId: string) => void;
-  onSuccess: () => void;
-};
+const API_URL = 'http://127.0.0.1:8000/backend/api';
 
-export function CheckoutPage({
-  cart,
-  user,
-  onUpdateQuantity,
-  onRemoveItem,
-  onSuccess,
-}: CheckoutPageProps) {
+export function CheckoutPage() {
+  const { user } = useAuth();
+  const { items: cart, removeItem, clearCart } = useCart();
+  const navigate = useNavigate();
   const [step, setStep] = useState<'cart' | 'checkout'>('cart');
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [shippingMethod, setShippingMethod] = useState('standard');
+  const [isProcessing, setIsProcessing] = useState(false);
   const [shippingAddress, setShippingAddress] = useState({
-    fullName: user?.name || '',
-    phone: user?.phone || '',
-    address: user?.address || '',
+    fullName: '',
+    phone: '',
+    address: '',
     city: '',
     district: '',
+    note: '',
   });
 
-  const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingFee = shippingMethod === 'express' ? 50000 : 25000;
   const total = subtotal + shippingFee;
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!shippingAddress.fullName || !shippingAddress.phone || !shippingAddress.address) {
       toast.error('Vui lòng điền đầy đủ thông tin giao hàng');
       return;
     }
 
-    toast.success('Đặt hàng thành công! Chúng tôi sẽ liên hệ với bạn sớm.');
-    onSuccess();
+    if (!user) {
+      toast.error('Vui lòng đăng nhập để đặt hàng');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const token = localStorage.getItem('token');
+      const orderData = {
+        items: cart.map(item => ({
+          product_id: parseInt(item.productId),
+          seller_id: item.sellerId,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity
+        })),
+        payment_method: paymentMethod,
+        shipping_method: shippingMethod,
+        shipping_name: shippingAddress.fullName,
+        shipping_phone: shippingAddress.phone,
+        shipping_address: shippingAddress.address,
+        shipping_city: shippingAddress.city,
+        shipping_district: shippingAddress.district,
+        shipping_note: shippingAddress.note,
+        shipping_fee: shippingFee,
+        discount_amount: 0
+      };
+
+      const response = await fetch(`${API_URL}/orders.php`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(orderData)
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Clear cart after successful order
+        try {
+          await clearCart();
+          console.log('Cart cleared after order creation');
+        } catch (clearError) {
+          console.error('Failed to clear cart after order:', clearError);
+          // Continue anyway, cart can be cleared manually
+        }
+        
+        // Navigate to payment result page with success status
+        const orderCode = result.data?.[0]?.order_code || 'N/A';
+        navigate(`/payment-result?resultCode=0&orderId=${orderCode}&message=Order placed successfully`);
+      } else {
+        toast.error(result.message || 'Đặt hàng thất bại');
+      }
+    } catch (error) {
+      console.error('Error creating order:', error);
+      toast.error('Có lỗi xảy ra khi đặt hàng');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (cart.length === 0) {
@@ -81,56 +135,37 @@ export function CheckoutPage({
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
               {cart.map((item) => (
-                <Card key={item.product.id} className="p-6">
+                <Card key={item.id} className="p-6">
                   <div className="flex gap-4">
                     <ImageWithFallback
-                      src={item.product.images[0]}
-                      alt={item.product.title}
+                      src={item.image}
+                      alt={item.name}
                       className="w-24 h-24 rounded-lg object-cover"
                     />
 
                     <div className="flex-1">
-                      <h3 className="mb-2">{item.product.title}</h3>
+                      <h3 className="mb-2">{item.name}</h3>
                       <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
-                        <span>Size: {item.product.size}</span>
-                        <span>•</span>
-                        <span>{item.product.location}</span>
+                        {item.size && <span>Size: {item.size}</span>}
+                        {item.color && (
+                          <>
+                            <span>•</span>
+                            <span>Màu: {item.color}</span>
+                          </>
+                        )}
                       </div>
 
                       <div className="flex items-center justify-between">
                         <div className="text-xl text-blue-600">
-                          {item.product.price.toLocaleString('vi-VN')}₫
+                          {item.price.toLocaleString('vi-VN')}₫
                         </div>
 
                         <div className="flex items-center gap-3">
-                          <div className="flex items-center border rounded-lg">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() =>
-                                onUpdateQuantity(item.product.id, item.quantity - 1)
-                              }
-                            >
-                              <Minus className="w-4 h-4" />
-                            </Button>
-                            <span className="w-12 text-center">{item.quantity}</span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() =>
-                                onUpdateQuantity(item.product.id, item.quantity + 1)
-                              }
-                            >
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          </div>
-
+                          <span className="text-sm text-gray-600">SL: {item.quantity}</span>
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => onRemoveItem(item.product.id)}
+                            onClick={() => removeItem(item.id)}
                           >
                             <Trash2 className="w-4 h-4 text-red-600" />
                           </Button>
@@ -261,6 +296,19 @@ export function CheckoutPage({
                     />
                   </div>
                 </div>
+
+                <div>
+                  <Label htmlFor="note">Ghi chú (tùy chọn)</Label>
+                  <Input
+                    id="note"
+                    placeholder="Ghi chú cho người bán..."
+                    value={shippingAddress.note}
+                    onChange={(e) =>
+                      setShippingAddress({ ...shippingAddress, note: e.target.value })
+                    }
+                    className="mt-2"
+                  />
+                </div>
               </div>
             </Card>
 
@@ -350,18 +398,18 @@ export function CheckoutPage({
 
               <div className="space-y-3 mb-6">
                 {cart.map((item) => (
-                  <div key={item.product.id} className="flex gap-3">
+                  <div key={item.id} className="flex gap-3">
                     <ImageWithFallback
-                      src={item.product.images[0]}
-                      alt={item.product.title}
+                      src={item.image}
+                      alt={item.name}
                       className="w-16 h-16 rounded-lg object-cover"
                     />
                     <div className="flex-1">
-                      <p className="text-sm line-clamp-2 mb-1">{item.product.title}</p>
+                      <p className="text-sm line-clamp-2 mb-1">{item.name}</p>
                       <p className="text-sm text-gray-600">SL: {item.quantity}</p>
                     </div>
                     <div className="text-sm">
-                      {(item.product.price * item.quantity).toLocaleString('vi-VN')}₫
+                      {(item.price * item.quantity).toLocaleString('vi-VN')}₫
                     </div>
                   </div>
                 ))}
@@ -391,8 +439,9 @@ export function CheckoutPage({
                 className="w-full bg-blue-600 hover:bg-blue-700 mb-3"
                 size="lg"
                 onClick={handleCheckout}
+                disabled={isProcessing}
               >
-                Đặt hàng
+                {isProcessing ? 'Đang xử lý...' : 'Đặt hàng'}
               </Button>
 
               <Button

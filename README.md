@@ -1,9 +1,6 @@
-
 # 🛍️ SecondStyle - Chợ Đồ Cũ Chất Lượng
 
 Nền tảng mua bán quần áo, giày dép, phụ kiện secondhand chất lượng cao với tính năng thương lượng giá trực tiếp.
-
-The original Figma design is available at https://www.figma.com/design/mn63atlUCSB713ra9j0tmy/Second-Hand-Clothing-Marketplace.
 
 ## ✨ Tính năng chính
 
@@ -42,63 +39,11 @@ Người bán đăng tin → Admin phê duyệt → Tin xuất hiện công khai
 ✅ **SEO** - Meta tags, Open Graph, Schema.org, sitemap.xml, robots.txt  
 ✅ **PWA** - Service worker, manifest.json, offline support, installable  
 
-## 🚀 Cài đặt & Chạy
-
-### 1. Cài đặt dependencies
-```bash
-npm install
-```
-
-### 2. Cài đặt Database
-```bash
-# Tạo database
-mysql -u root -p
-CREATE DATABASE secondhand_marketplace CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-# Import schema và data
-mysql -u root -p secondhand_marketplace < src/backend/database/schema.sql
-mysql -u root -p secondhand_marketplace < src/backend/database/sample_data.sql
-```
-
-### 3. Cấu hình
-Sửa `src/backend/config/database.php` và `src/backend/config/constants.php` với thông tin database của bạn.
-
-### 4. Chạy dự án
-```bash
-# Terminal 1: Backend
-cd src
-php -S localhost:8000
-
-# Terminal 2: Frontend
-npm run dev
-```
-
-Truy cập: http://localhost:5173
-
-### Tài khoản mẫu
-- Admin: admin@secondstyle.vn / password123
-- Seller: seller1@example.com / password123
-- Buyer: buyer1@example.com / password123
-
 ## 🛠️ Tech Stack
 
 **Frontend:** React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui  
 **Backend:** PHP 7.4+ + MySQL 5.7+ + JWT  
 **PWA:** Service Worker + Web App Manifest
-
-## 📁 Cấu trúc chính
-
-```
-src/
-├── backend/
-│   ├── api/negotiations.php      # API thương lượng giá (MỚI)
-│   ├── database/schema.sql       # Schema với specifications, negotiations (CẬP NHẬT)
-│   └── database/sample_data.sql  # 7 sản phẩm mẫu chi tiết (CẬP NHẬT)
-├── components/
-│   ├── PriceNegotiation.tsx      # Component thương lượng giá (MỚI)
-│   ├── ProductDetail.tsx         # Hiển thị specs, negotiation (CẬP NHẬT)
-│   └── CreateListing.tsx         # Form đăng tin đầy đủ (CẬP NHẬT)
-```
 
 ## 📊 Danh mục sản phẩm
 
@@ -109,4 +54,76 @@ src/
 
 ---
 
-Built with ❤️ by SecondStyle Team  
+## 📝 Hướng dẫn cài đặt & chạy local
+
+### 1. Yêu cầu hệ thống
+- Node.js >= 16
+- npm >= 8
+- PHP >= 7.4
+- MySQL >= 5.7 
+
+### 2. Clone source code
+```bash
+git clone https://github.com/Dreaming3947/Web-Clothes.git
+cd Web-Clothes
+```
+
+### 3. Cài đặt dependencies frontend
+```bash
+npm install
+```
+
+### 4. Cài đặt database
+- Đảm bảo MySQL đã chạy.
+- Tạo database:
+```sql
+CREATE DATABASE secondhand_marketplace CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+- Import schema và dữ liệu mẫu:
+```bash
+mysql -u root -p (mật khẩu) secondhand_marketplace < src/backend/database/secondhand_marketplace.sql
+
+```
+
+### 5. Cấu hình backend (nếu cần)
+- Mặc định đã cấu hình cho local:
+  - `src/backend/config/database.php`:
+    - host: `localhost`
+    - db_name: `secondhand_marketplace`
+    - username: `root`
+    - password:  (mật khẩu)
+  - `src/backend/config/constants.php`:
+    - BASE_URL: `http://127.0.0.1:8000/backend`
+- Nếu bạn đổi thông tin database, hãy sửa lại cho đúng.
+
+  -  Đổi thành key thật để test chức năng thanh toàn bằng momo
+  -  MoMo Test Environment Credentials
+  -  private $partnerCode = 'YOUR_PARTNER_CODE';
+  -  private $accessKey = 'YOUR_ACCESS_KEY';
+  -  private $secretKey = 'YOUR_SECRET_KEY';
+  -  private $endpoint = 'https://test-payment.momo.vn/v2/gateway/api/create';
+
+### 6. Chạy backend (API)
+```bash
+cd src
+php -S 127.0.0.1:8000
+```
+
+### 7. Chạy frontend
+Mở tab terminal mới:
+```bash
+npm run dev
+```
+
+### 8. Truy cập website
+- Frontend: http://localhost:5173
+- API backend: http://127.0.0.1:8000/backend/api
+
+### 9. Tài khoản mẫu
+- Admin: admin@secondstyle.vn / password123
+- Seller: seller1@example.com / password123
+- Buyer: buyer1@example.com / password123
+
+---
+
+Nếu gặp lỗi kết nối database, hãy kiểm tra lại các bước import và cấu hình ở trên.

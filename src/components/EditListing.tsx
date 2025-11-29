@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Upload, X } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from './ui/button';
@@ -9,6 +9,8 @@ import { Textarea } from './ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { toast } from 'sonner';
+
+const API_URL = 'http://127.0.0.1:8000/backend/api';
 
 interface Category {
   id: number;
@@ -20,10 +22,12 @@ interface Category {
   children?: Category[];
 }
 
-export default function CreateListing() {
+export default function EditListing() {
+  const { id } = useParams<{ id: string }>();
   const { language } = useLanguage();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -52,7 +56,7 @@ export default function CreateListing() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('http://127.0.0.1:8000/backend/api/categories.php');
+        const response = await fetch(`${API_URL}/categories.php`);
         const result = await response.json();
         
         if (response.ok && result.success) {
@@ -80,6 +84,57 @@ export default function CreateListing() {
     { id: 'used', label: { vi: 'Đã qua sử dụng', en: 'Used' } },
   ];
 
+  useEffect(() => {
+    fetchProductData();
+  }, [id]);
+
+  const fetchProductData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/products.php?id=${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch product');
+      }
+
+      const result = await response.json();
+      const product = result.data || result.message;
+
+      if (!product) {
+        throw new Error('Product not found');
+      }
+
+      setFormData({
+        title: product.title || '',
+        description: product.description || '',
+        conditionDetail: product.condition_detail || '',
+        category: product.category_id?.toString() || '',
+        brand: product.brand || '',
+        condition: product.condition || '',
+        size: product.size || '',
+        color: product.color || '',
+        material: product.material || '',
+        price: product.price?.toString() || '',
+        originalPrice: product.original_price?.toString() || '',
+        allowNegotiation: product.allow_negotiation !== 0,
+        minAcceptablePrice: product.min_acceptable_price?.toString() || '',
+        specifications: product.specifications || {},
+      });
+
+      setImages(product.images || []);
+    } catch (error: any) {
+      console.error('Error fetching product:', error);
+      toast.error(error.message || (language === 'vi' ? 'Lỗi tải sản phẩm' : 'Error loading product'));
+      navigate('/seller-dashboard');
+    } finally {
+      setFetching(false);
+    }
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     
@@ -99,7 +154,7 @@ export default function CreateListing() {
       });
 
       const token = localStorage.getItem('token');
-      const response = await fetch('http://127.0.0.1:8000/backend/api/upload.php?type=product', {
+      const response = await fetch(`${API_URL}/upload.php?type=product`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -198,62 +253,67 @@ export default function CreateListing() {
     try {
       const token = localStorage.getItem('token');
       
-      const categoryId = parseInt(formData.category);
-      
-      const payload = {
-        title: formData.title,
-        description: formData.description,
-        condition: formData.condition,
-        condition_detail: formData.conditionDetail,
-        category_id: categoryId,
-        brand: formData.brand,
-        size: formData.size || null,
-        color: formData.color,
-        material: formData.material,
-        price: parseFloat(formData.price),
-        original_price: formData.originalPrice ? parseFloat(formData.originalPrice) : parseFloat(formData.price),
-        allow_negotiation: formData.allowNegotiation,
-        min_acceptable_price: formData.minAcceptablePrice ? parseFloat(formData.minAcceptablePrice) : null,
-        specifications: formData.specifications,
-        images: images,
-      };
-      
-      // Create product
-      const response = await fetch('http://127.0.0.1:8000/backend/api/products.php', {
-        method: 'POST',
+      const response = await fetch(`${API_URL}/products.php?id=${id}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          condition: formData.condition,
+          condition_detail: formData.conditionDetail,
+          category_id: parseInt(formData.category),
+          brand: formData.brand,
+          size: formData.size,
+          color: formData.color,
+          material: formData.material,
+          price: parseFloat(formData.price),
+          original_price: formData.originalPrice ? parseFloat(formData.originalPrice) : parseFloat(formData.price),
+          allow_negotiation: formData.allowNegotiation,
+          min_acceptable_price: formData.minAcceptablePrice ? parseFloat(formData.minAcceptablePrice) : null,
+          specifications: formData.specifications,
+          images: images,
+        }),
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Failed to create product');
+        throw new Error(result.message || 'Failed to update product');
       }
 
-      toast.success(language === 'vi' ? 'Đăng tin thành công!' : 'Listing created successfully!');
+      toast.success(language === 'vi' ? 'Cập nhật sản phẩm thành công!' : 'Product updated successfully!');
       navigate('/seller-dashboard');
     } catch (error: any) {
-      console.error('Error creating listing:', error);
-      toast.error(error.message || (language === 'vi' ? 'Đăng tin thất bại' : 'Failed to create listing'));
+      console.error('Error updating product:', error);
+      toast.error(error.message || (language === 'vi' ? 'Cập nhật thất bại' : 'Failed to update product'));
     } finally {
       setLoading(false);
     }
   };
 
+  if (fetching) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-12">
+          <p className="text-gray-500">{language === 'vi' ? 'Đang tải...' : 'Loading...'}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl mb-2">
-          {language === 'vi' ? 'Đăng tin bán hàng' : 'Create New Listing'}
+          {language === 'vi' ? 'Chỉnh sửa sản phẩm' : 'Edit Product'}
         </h1>
         <p className="text-gray-600 mb-8">
           {language === 'vi' 
-            ? 'Điền đầy đủ thông tin để tăng cơ hội bán hàng'
-            : 'Fill in complete information to increase sales opportunities'}
+            ? 'Cập nhật thông tin sản phẩm của bạn'
+            : 'Update your product information'}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -349,15 +409,12 @@ export default function CreateListing() {
                     disabled={loadingCategories}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={loadingCategories 
-                        ? (language === 'vi' ? 'Đang tải...' : 'Loading...') 
-                        : (language === 'vi' ? 'Chọn danh mục' : 'Select category')} 
-                      />
+                      <SelectValue placeholder={language === 'vi' ? 'Chọn danh mục' : 'Select category'} />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((cat) => (
                         <SelectItem key={cat.id} value={cat.id.toString()}>
-                          {cat.icon ? `${cat.icon} ` : ''}{cat.name}
+                          {cat.icon && `${cat.icon} `}{cat.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -404,6 +461,26 @@ export default function CreateListing() {
                   </Select>
                 </div>
 
+                {shouldShowSize() && (
+                  <div>
+                    <Label>
+                      {language === 'vi' ? 'Kích cỡ' : 'Size'} *
+                    </Label>
+                    <Select value={formData.size} onValueChange={(value) => setFormData({ ...formData, size: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={language === 'vi' ? 'Chọn kích cỡ' : 'Select size'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'Freesize'].map((size) => (
+                          <SelectItem key={size} value={size}>
+                            {size}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div>
                   <Label htmlFor="color">
                     {language === 'vi' ? 'Màu sắc' : 'Color'}
@@ -416,33 +493,6 @@ export default function CreateListing() {
                   />
                 </div>
               </div>
-
-              {/* Size - Only for clothing categories */}
-              {formData.category && shouldShowSize() && (
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>
-                      {language === 'vi' ? 'Kích cỡ' : 'Size'} *
-                    </Label>
-                    <Select value={formData.size} onValueChange={(value) => setFormData({ ...formData, size: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={language === 'vi' ? 'Chọn kích cỡ' : 'Select size'} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="XS">XS</SelectItem>
-                        <SelectItem value="S">S</SelectItem>
-                        <SelectItem value="M">M</SelectItem>
-                        <SelectItem value="L">L</SelectItem>
-                        <SelectItem value="XL">XL</SelectItem>
-                        <SelectItem value="XXL">XXL</SelectItem>
-                        <SelectItem value="XXXL">XXXL</SelectItem>
-                        <SelectItem value="Freesize">{language === 'vi' ? 'Freesize' : 'One Size'}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div></div>
-                </div>
-              )}
 
               <div>
                 <Label htmlFor="conditionDetail">
@@ -601,7 +651,7 @@ export default function CreateListing() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/seller-dashboard')}
               className="flex-1"
             >
               {language === 'vi' ? 'Hủy' : 'Cancel'}
@@ -611,7 +661,7 @@ export default function CreateListing() {
               className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600"
               disabled={loading}
             >
-              {loading ? (language === 'vi' ? 'Đang đăng...' : 'Posting...') : (language === 'vi' ? 'Đăng tin' : 'Post Listing')}
+              {loading ? (language === 'vi' ? 'Đang cập nhật...' : 'Updating...') : (language === 'vi' ? 'Cập nhật' : 'Update')}
             </Button>
           </div>
         </form>

@@ -70,11 +70,13 @@ if ($method === 'POST' && isset($_GET['action']) && $_GET['action'] === 'registe
     ]);
 
     if ($userId) {
-        // Generate token
-        $token = Auth::generateToken($userId, $email, $role);
+        // Generate tokens
+        $token = Auth::generateToken($userId, $email, $role, false);
+        $refreshToken = Auth::generateRefreshToken($userId);
 
         Response::success(SUCCESS_MESSAGES['REGISTER_SUCCESS'], [
             'token' => $token,
+            'refreshToken' => $refreshToken,
             'user' => [
                 'id' => $userId,
                 'email' => $email,
@@ -118,11 +120,16 @@ else if ($method === 'POST' && isset($_GET['action']) && $_GET['action'] === 'lo
     // Update last login
     $userModel->updateLastLogin($user['id']);
 
-    // Generate token
-    $token = Auth::generateToken($user['id'], $user['email'], $user['role']);
+    // Check if remember me
+    $rememberMe = isset($request['rememberMe']) && $request['rememberMe'] === true;
+
+    // Generate tokens
+    $token = Auth::generateToken($user['id'], $user['email'], $user['role'], $rememberMe);
+    $refreshToken = Auth::generateRefreshToken($user['id']);
 
     Response::success(SUCCESS_MESSAGES['LOGIN_SUCCESS'], [
         'token' => $token,
+        'refreshToken' => $refreshToken,
         'user' => [
             'id' => $user['id'],
             'email' => $user['email'],
@@ -301,6 +308,81 @@ else if ($method === 'PUT' && isset($_GET['action']) && $_GET['action'] === 'upd
     } else {
         Response::serverError('Cập nhật thất bại');
     }
+}
+
+// ============================================
+// REFRESH TOKEN
+// ============================================
+else if ($method === 'POST' && isset($_GET['action']) && $_GET['action'] === 'refresh-token') {
+    // Can use either refresh token or current token
+    $refreshTokenValue = $request['refreshToken'] ?? null;
+    
+    if ($refreshTokenValue) {
+        // Verify refresh token
+        $tokenData = Auth::verifyRefreshToken($refreshTokenValue);
+        
+        if (!$tokenData) {
+            Response::error('Refresh token không hợp lệ hoặc đã hết hạn', null, 401);
+        }
+        
+        // Get user info
+        $user = $userModel->getById($tokenData['user_id']);
+        
+        if (!$user || $user['status'] !== 'active') {
+            Response::error('Người dùng không tồn tại hoặc đã bị khóa', null, 401);
+        }
+        
+        // Generate new tokens
+        $newToken = Auth::generateToken($user['id'], $user['email'], $user['role'], true);
+        $newRefreshToken = Auth::generateRefreshToken($user['id']);
+        
+        Response::success('Token đã được làm mới', [
+            'token' => $newToken,
+            'refreshToken' => $newRefreshToken
+        ]);
+    } else {
+        // Try to use current token
+        $currentUser = Auth::requireAuth();
+        
+        if (!$currentUser) {
+            Response::unauthorized('Token không hợp lệ');
+        }
+        
+        // Get user info
+        $user = $userModel->getById($currentUser['user_id']);
+        
+        if (!$user || $user['status'] !== 'active') {
+            Response::error('Người dùng không tồn tại hoặc đã bị khóa', null, 401);
+        }
+        
+        // Generate new tokens
+        $newToken = Auth::generateToken($user['id'], $user['email'], $user['role'], true);
+        $newRefreshToken = Auth::generateRefreshToken($user['id']);
+        
+        Response::success('Token đã được làm mới', [
+            'token' => $newToken,
+            'refreshToken' => $newRefreshToken
+        ]);
+    }
+}
+
+// ============================================
+// LOGOUT
+// ============================================
+else if ($method === 'POST' && isset($_GET['action']) && $_GET['action'] === 'logout') {
+    $currentUser = Auth::requireAuth();
+    
+    // In a production app, you would:
+    // 1. Invalidate the refresh token in database
+    // 2. Add token to blacklist
+    // 3. Clear any server-side sessions
+    
+    // For now, we just return success
+    // The client will remove tokens from localStorage
+    
+    Response::success('Đăng xuất thành công', [
+        'message' => 'Phiên đăng nhập đã được kết thúc'
+    ]);
 }
 
 else {

@@ -81,26 +81,11 @@ export default function Cart() {
                     <div className="flex items-center justify-between">
                       <p className="text-lg text-purple-600">{item.price.toLocaleString('vi-VN')}₫</p>
                       
-                      {/* Quantity Controls */}
+                      {/* Quantity Display - Fixed at 1 for secondhand items */}
                       <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="size-8"
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          disabled={item.quantity <= 1}
-                        >
-                          <Minus className="size-4" />
-                        </Button>
-                        <span className="w-12 text-center">{item.quantity}</span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="size-8"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        >
-                          <Plus className="size-4" />
-                        </Button>
+                        <span className="text-sm text-gray-600">
+                          {language === 'vi' ? 'Số lượng:' : 'Quantity:'} {item.quantity}
+                        </span>
                         <Button
                           variant="ghost"
                           size="icon"

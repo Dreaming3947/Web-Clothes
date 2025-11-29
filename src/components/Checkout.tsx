@@ -10,15 +10,18 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Separator } from './ui/separator';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+
+const API_URL = 'http://127.0.0.1:8000/backend/api';
 
 export default function Checkout() {
   const { language, t } = useLanguage();
   const { user } = useAuth();
   const { items, total, clearCart } = useCart();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
-  const [paymentMethod, setPaymentMethod] = useState('vnpay');
+  const [paymentMethod, setPaymentMethod] = useState('cod');
   const [shippingInfo, setShippingInfo] = useState({
     fullName: user?.name || '',
     phone: user?.phone || '',
@@ -62,10 +65,139 @@ export default function Checkout() {
       return;
     }
 
-    // Mock order creation
-    toast.success(language === 'vi' ? 'Đặt hàng thành công!' : 'Order placed successfully!');
-    clearCart();
-    navigate('/buyer-dashboard');
+    if (items.length === 0) {
+      toast.error(language === 'vi' ? 'Giỏ hàng trống' : 'Cart is empty');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Prepare order data
+      const orderData = {
+        items: items.map(item => ({
+          product_id: parseInt(item.productId),
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          seller_id: parseInt(item.sellerId)
+        })),
+        shipping_name: shippingInfo.fullName,
+        shipping_phone: shippingInfo.phone,
+        shipping_address: shippingInfo.address,
+        shipping_city: shippingInfo.city,
+        shipping_district: shippingInfo.district,
+        shipping_note: shippingInfo.note,
+        payment_method: paymentMethod,
+        shipping_fee: shippingFee,
+        discount_amount: 0
+      };
+
+      // Handle MoMo payment
+      if (paymentMethod === 'momo') {
+        // Step 1: Create order first (vì MoMo callback không work với localhost)
+        const createOrderResponse = await fetch(`${API_URL}/orders.php`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify(orderData)
+        });
+
+        const orderResult = await createOrderResponse.json();
+
+        if (!createOrderResponse.ok || !orderResult.success) {
+          throw new Error(orderResult.message || 'Failed to create order');
+        }
+
+        const orderCode = orderResult.data?.[0]?.order_code || 'N/A';
+        const orderId = orderResult.data?.[0]?.id;
+        
+        console.log('Order created:', { orderCode, orderId });
+
+        // Step 2: Create MoMo payment URL
+        const momoData = {
+          amount: finalTotal,
+          orderInfo: `Thanh toán đơn hàng ${orderCode}`,
+          order_id: orderId,
+          order_code: orderCode,
+          items: orderData.items,
+          shipping_info: {
+            fullName: shippingInfo.fullName,
+            phone: shippingInfo.phone,
+            address: shippingInfo.address,
+            city: shippingInfo.city,
+            district: shippingInfo.district,
+            note: shippingInfo.note
+          }
+        };
+
+        const momoResponse = await fetch(`${API_URL}/momo.php`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify(momoData)
+        });
+
+        const momoResult = await momoResponse.json();
+        
+        if (!momoResponse.ok || !momoResult.success) {
+          throw new Error(momoResult.message || 'Failed to create payment URL');
+        }
+
+        // Step 3: Clear cart before redirect
+        try {
+          await clearCart();
+          console.log('Cart cleared before MoMo redirect');
+        } catch (clearError) {
+          console.error('Failed to clear cart:', clearError);
+        }
+
+        // Step 4: Redirect to MoMo payment page
+        console.log('Redirecting to MoMo:', momoResult.data.payUrl);
+        window.location.href = momoResult.data.payUrl;
+        return;
+      }
+
+      // Handle COD or other payment methods
+      const response = await fetch(`${API_URL}/orders.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(orderData)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to create order');
+      }
+
+      // Clear cart after successful order
+      try {
+        await clearCart();
+        console.log('Cart cleared after order creation');
+      } catch (clearError) {
+        console.error('Failed to clear cart after order:', clearError);
+        // Continue anyway, cart can be cleared manually
+      }
+      
+      // Navigate to payment result page with success status
+      const orderCode = result.data?.[0]?.order_code || 'N/A';
+      navigate(`/payment-result?resultCode=0&orderId=${orderCode}&message=Order placed successfully`);
+    } catch (error: any) {
+      console.error('Order creation error:', error);
+      toast.error(error.message || (language === 'vi' ? 'Đặt hàng thất bại' : 'Failed to place order'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -179,18 +311,17 @@ export default function Checkout() {
                     {paymentMethods.map((method) => (
                       <div
                         key={method.id}
-                        className={`flex items-center space-x-3 border rounded-lg p-4 cursor-pointer transition-colors ${
+                        className={`flex items-center space-x-3 border rounded-lg p-4 transition-colors ${
                           paymentMethod === method.id
                             ? 'border-purple-600 bg-purple-50'
                             : 'hover:border-gray-400'
                         }`}
-                        onClick={() => setPaymentMethod(method.id)}
                       >
                         <RadioGroupItem value={method.id} id={method.id} />
                         <Label htmlFor={method.id} className="flex items-center gap-3 cursor-pointer flex-1">
                           <span className="text-2xl">{method.icon}</span>
                           <div>
-                            <p>{method.name}</p>
+                            <p className="font-medium">{method.name}</p>
                             <p className="text-sm text-gray-600">{method.description}</p>
                           </div>
                         </Label>

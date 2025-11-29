@@ -10,7 +10,9 @@ class Auth {
     /**
      * Generate JWT token
      */
-    public static function generateToken($userId, $email, $role) {
+    public static function generateToken($userId, $email, $role, $rememberMe = false) {
+        $expiration = $rememberMe ? (30 * 24 * 60 * 60) : JWT_EXPIRATION; // 30 days or 7 days
+        
         $header = json_encode([
             'typ' => 'JWT',
             'alg' => JWT_ALGORITHM
@@ -21,7 +23,7 @@ class Auth {
             'email' => $email,
             'role' => $role,
             'iat' => time(),
-            'exp' => time() + JWT_EXPIRATION
+            'exp' => time() + $expiration
         ]);
 
         $base64UrlHeader = self::base64UrlEncode($header);
@@ -36,6 +38,45 @@ class Auth {
         $base64UrlSignature = self::base64UrlEncode($signature);
 
         return $base64UrlHeader . "." . $base64UrlPayload . "." . $base64UrlSignature;
+    }
+
+    /**
+     * Generate refresh token
+     */
+    public static function generateRefreshToken($userId) {
+        $token = self::generateRandomToken(64);
+        $expiry = date('Y-m-d H:i:s', strtotime('+30 days'));
+        
+        // Store refresh token in database (you need to create this table)
+        // For now, we'll encode it in a JWT-like format for simplicity
+        $data = json_encode([
+            'user_id' => $userId,
+            'token' => $token,
+            'exp' => strtotime('+30 days')
+        ]);
+        
+        return self::base64UrlEncode($data);
+    }
+
+    /**
+     * Verify refresh token
+     */
+    public static function verifyRefreshToken($refreshToken) {
+        try {
+            $data = json_decode(self::base64UrlDecode($refreshToken), true);
+            
+            if (!$data || !isset($data['user_id']) || !isset($data['exp'])) {
+                return false;
+            }
+            
+            if ($data['exp'] < time()) {
+                return false; // Token expired
+            }
+            
+            return $data;
+        } catch (Exception $e) {
+            return false;
+        }
     }
 
     /**

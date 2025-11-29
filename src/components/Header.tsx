@@ -78,17 +78,19 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Cart */}
-            <Link to="/cart">
-              <Button variant="ghost" size="icon" className="relative">
-                <ShoppingCart className="size-5" />
-                {items.length > 0 && (
-                  <Badge className="absolute -top-1 -right-1 size-5 flex items-center justify-center p-0 text-xs">
-                    {items.length}
-                  </Badge>
-                )}
-              </Button>
-            </Link>
+            {/* Cart - Only show when logged in and not admin */}
+            {user && user.role !== 'admin' && (
+              <Link to="/cart">
+                <Button variant="ghost" size="icon" className="relative">
+                  <ShoppingCart className="size-5" />
+                  {items.length > 0 && (
+                    <Badge className="absolute -top-1 -right-1 size-5 flex items-center justify-center p-0 text-xs">
+                      {items.length}
+                    </Badge>
+                  )}
+                </Button>
+              </Link>
+            )}
 
             {/* User Menu */}
             {user ? (
@@ -116,19 +118,21 @@ export default function Header() {
                       {t('profile')}
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/buyer-dashboard" className="flex items-center gap-2">
-                      <Package className="size-4" />
-                      {t('myOrders')}
-                    </Link>
-                  </DropdownMenuItem>
+                  {user.role !== 'admin' && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/buyer-dashboard" className="flex items-center gap-2">
+                        <Package className="size-4" />
+                        {t('myOrders')}
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link to="/messages" className="flex items-center gap-2">
                       <MessageSquare className="size-4" />
                       {t('messages')}
                     </Link>
                   </DropdownMenuItem>
-                  {(user.role === 'seller' || user.role === 'admin') && (
+                  {user.role === 'seller' && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem asChild>
@@ -191,25 +195,21 @@ export default function Header() {
           <Link to="/" className="hover:text-purple-600 transition-colors">
             {t('home')}
           </Link>
+          <Link to="/about" className="hover:text-purple-600 transition-colors">
+            {language === 'vi' ? 'Giới Thiệu' : 'About'}
+          </Link>
           <Link to="/products" className="hover:text-purple-600 transition-colors">
             {t('products')}
           </Link>
-          <Link to="/products?category=women" className="hover:text-purple-600 transition-colors">
+          <Link to="/products?category=quan-ao-nu" className="hover:text-purple-600 transition-colors">
             Nữ
           </Link>
-          <Link to="/products?category=men" className="hover:text-purple-600 transition-colors">
+          <Link to="/products?category=quan-ao-nam" className="hover:text-purple-600 transition-colors">
             Nam
           </Link>
-          <Link to="/products?category=accessories" className="hover:text-purple-600 transition-colors">
+          <Link to="/products?category=phu-kien" className="hover:text-purple-600 transition-colors">
             Phụ kiện
           </Link>
-          {user && (
-            <Link to="/create-listing" className="ml-auto">
-              <Button size="sm" className="bg-gradient-to-r from-purple-600 to-pink-600">
-                + {t('createListing')}
-              </Button>
-            </Link>
-          )}
         </nav>
       </div>
 
@@ -238,6 +238,13 @@ export default function Header() {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {t('home')}
+              </Link>
+              <Link
+                to="/about"
+                className="px-4 py-2 hover:bg-gray-100 rounded-lg"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {language === 'vi' ? 'Giới Thiệu' : 'About'}
               </Link>
               <Link
                 to="/products"

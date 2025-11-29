@@ -1,21 +1,71 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, Heart, Star, MapPin, Clock } from 'lucide-react';
+import { Package, Heart, Star, MapPin, Clock, ShoppingBag } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { toast } from 'sonner';
+
+const API_URL = 'http://127.0.0.1:8000/backend/api';
 
 export default function BuyerDashboard() {
   const { language, t } = useLanguage();
   const { user } = useAuth();
+  const [orders, setOrders] = useState<any[]>([]);
+  const [favorites, setFavorites] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // TODO: Replace with API call to fetch user's orders
-  const orders: any[] = [];
-  
-  // TODO: Replace with API call to fetch user's favorites
-  const favorites: any[] = [];
+  useEffect(() => {
+    fetchBuyerData();
+  }, []);
+
+  const fetchBuyerData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      // Fetch orders
+      const ordersRes = await fetch(`${API_URL}/orders.php?type=buyer`, { headers });
+      if (ordersRes.ok) {
+        const ordersData = await ordersRes.json();
+        const ordersList = ordersData.data || ordersData.message || [];
+        setOrders(ordersList);
+      }
+
+      // Fetch favorites
+      const favoritesRes = await fetch(`${API_URL}/products.php?action=favorites`, { headers });
+      if (favoritesRes.ok) {
+        const favoritesData = await favoritesRes.json();
+        console.log('Favorites API response:', favoritesData);
+        const favoritesList = favoritesData.data || [];
+        console.log('Favorites list length:', favoritesList.length);
+        // Map favorites to display format
+        const mappedFavorites = favoritesList.map((fav: any) => ({
+          id: fav.id,
+          name: fav.title,
+          image: fav.images?.[0] || fav.primary_image || 'https://via.placeholder.com/400',
+          price: parseFloat(fav.price),
+          originalPrice: parseFloat(fav.original_price || fav.price),
+          condition: fav.condition
+        }));
+        setFavorites(mappedFavorites);
+      }
+
+    } catch (error) {
+      console.error('Error fetching buyer data:', error);
+      toast.error(language === 'vi' ? 'Lỗi tải dữ liệu' : 'Error loading data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -55,34 +105,89 @@ export default function BuyerDashboard() {
     }
   };
 
+  const handleRemoveFavorite = async (productId: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/products.php?id=${productId}&action=favorite`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        // Remove from local state
+        setFavorites(favorites.filter(f => f.id !== productId));
+        toast.success(language === 'vi' ? 'Đã xóa khỏi yêu thích' : 'Removed from favorites');
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.error('Error removing favorite:', error);
+      toast.error(language === 'vi' ? 'Lỗi khi xóa yêu thích' : 'Error removing from favorites');
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl mb-8">{t('buyerDashboard')}</h1>
+      <h1 className="text-3xl mb-8">
+        {language === 'vi' ? 'Đơn hàng của tôi' : 'My Orders'}
+      </h1>
 
-      <Tabs defaultValue="orders">
-        <TabsList>
-          <TabsTrigger value="orders">
-            <Package className="size-4 mr-2" />
-            {t('myOrders')}
-          </TabsTrigger>
-          <TabsTrigger value="favorites">
-            <Heart className="size-4 mr-2" />
-            {t('favorites')}
-          </TabsTrigger>
-        </TabsList>
+      {loading ? (
+        <div className="text-center py-8">
+          <p className="text-gray-500">{language === 'vi' ? 'Đang tải...' : 'Loading...'}</p>
+        </div>
+      ) : (
+        <Tabs defaultValue="orders">
+          <TabsList>
+            <TabsTrigger value="orders">
+              <Package className="size-4 mr-2" />
+              {t('myOrders')}
+            </TabsTrigger>
+            <TabsTrigger value="favorites">
+              <Heart className="size-4 mr-2" />
+              {t('favorites')}
+            </TabsTrigger>
+          </TabsList>
 
         <TabsContent value="orders" className="mt-6">
-          <div className="space-y-4">
+          {orders.length === 0 ? (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center">
+                  <ShoppingBag className="size-16 mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-500 mb-4">
+                    {language === 'vi' ? 'Bạn chưa có đơn hàng nào' : 'You have no orders yet'}
+                  </p>
+                  <Button asChild className="bg-gradient-to-r from-purple-600 to-pink-600">
+                    <Link to="/products">
+                      {language === 'vi' ? 'Khám phá sản phẩm' : 'Explore Products'}
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
             {orders.map((order) => (
               <Card key={order.id}>
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <Link to={`/orders/${order.id}`} className="text-purple-600 hover:underline mb-1">
-                        {order.id}
-                      </Link>
+                      <p className="font-semibold text-purple-600 mb-1">
+                        {order.order_code}
+                      </p>
                       <p className="text-sm text-gray-600">
-                        {language === 'vi' ? 'Đặt ngày' : 'Ordered on'} {order.orderDate}
+                        {language === 'vi' ? 'Đặt ngày' : 'Ordered on'} {new Date(order.created_at).toLocaleDateString('vi-VN')}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {language === 'vi' ? 'Người bán' : 'Seller'}: {order.seller_name}
                       </p>
                     </div>
                     <Badge className={getStatusColor(order.status)}>
@@ -91,32 +196,30 @@ export default function BuyerDashboard() {
                     </Badge>
                   </div>
 
-                  <div className="flex gap-4 mb-4">
-                    <Link to={`/products/${order.product.name}`}>
-                      <img
-                        src={order.product.image}
-                        alt={order.product.name}
-                        className="size-24 rounded-lg object-cover"
-                      />
-                    </Link>
-                    <div className="flex-1">
-                      <Link to={`/products/${order.product.name}`} className="hover:text-purple-600">
-                        <h3 className="mb-1">{order.product.name}</h3>
-                      </Link>
-                      <p className="text-sm text-gray-600 mb-1">
-                        {language === 'vi' ? 'Người bán' : 'Seller'}: {order.seller}
-                      </p>
-                      <p className="text-sm text-gray-600 mb-2">Size: {order.product.size}</p>
-                      <p className="text-purple-600">{order.product.price.toLocaleString('vi-VN')}₫</p>
-                    </div>
+                  <div className="space-y-3 mb-4">
+                    {order.items && order.items.map((item: any) => (
+                      <div key={item.id} className="flex gap-4">
+                        <img
+                          src={item.image || 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400'}
+                          alt={item.title || item.product_name}
+                          className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                        />
+                        <div className="flex-1">
+                          <h3 className="mb-1">{item.title || item.product_name}</h3>
+                          <p className="text-sm text-gray-600">
+                            {language === 'vi' ? 'Số lượng' : 'Quantity'}: {item.quantity}
+                          </p>
+                          <p className="text-purple-600">{parseFloat(item.product_price).toLocaleString('vi-VN')}₫</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
-                  {/* Order Timeline */}
                   <div className="border-t pt-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                      <Clock className="size-4" />
-                      <span>
-                        {language === 'vi' ? 'Dự kiến giao' : 'Expected delivery'}: {order.deliveryDate}
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-gray-600">{language === 'vi' ? 'Tổng tiền' : 'Total'}:</span>
+                      <span className="text-xl font-semibold text-purple-600">
+                        {parseFloat(order.final_amount).toLocaleString('vi-VN')}₫
                       </span>
                     </div>
                   </div>
@@ -128,16 +231,7 @@ export default function BuyerDashboard() {
                           <Star className="size-4 mr-2" />
                           {language === 'vi' ? 'Đánh giá' : 'Review'}
                         </Button>
-                        <Button variant="outline" size="sm">
-                          {language === 'vi' ? 'Mua lại' : 'Buy Again'}
-                        </Button>
                       </>
-                    )}
-                    {order.status === 'shipping' && (
-                      <Button variant="outline" size="sm">
-                        <MapPin className="size-4 mr-2" />
-                        {language === 'vi' ? 'Theo dõi đơn hàng' : 'Track Order'}
-                      </Button>
                     )}
                     <Button variant="outline" size="sm" asChild>
                       <Link to="/messages">
@@ -148,11 +242,29 @@ export default function BuyerDashboard() {
                 </CardContent>
               </Card>
             ))}
-          </div>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="favorites" className="mt-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {favorites.length === 0 ? (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center">
+                  <Heart className="size-16 mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-500 mb-4">
+                    {language === 'vi' ? 'Chưa có sản phẩm yêu thích' : 'No favorite products yet'}
+                  </p>
+                  <Button asChild className="bg-gradient-to-r from-purple-600 to-pink-600">
+                    <Link to="/products">
+                      {language === 'vi' ? 'Tìm sản phẩm yêu thích' : 'Find Favorite Products'}
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {favorites.map((item) => (
               <Link key={item.id} to={`/products/${item.id}`}>
                 <Card className="group overflow-hidden hover:shadow-lg transition-all">
@@ -166,10 +278,7 @@ export default function BuyerDashboard() {
                       variant="ghost"
                       size="icon"
                       className="absolute top-2 right-2 bg-white/90 hover:bg-white"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        // Remove from favorites logic
-                      }}
+                      onClick={(e) => handleRemoveFavorite(item.id, e)}
                     >
                       <Heart className="size-4 fill-red-500 text-red-500" />
                     </Button>
@@ -196,9 +305,11 @@ export default function BuyerDashboard() {
                 </Card>
               </Link>
             ))}
-          </div>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
+      )}
     </div>
   );
 }

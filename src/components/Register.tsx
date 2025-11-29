@@ -19,6 +19,7 @@ export default function Register() {
     phone: '',
     password: '',
     confirmPassword: '',
+    role: 'buyer' as 'buyer' | 'seller',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,6 +38,7 @@ export default function Register() {
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
+        role: formData.role,
       });
       toast.success(language === 'vi' ? 'Đăng ký thành công!' : 'Registration successful!');
       navigate('/');
@@ -111,6 +113,48 @@ export default function Register() {
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="0123456789"
                 />
+              </div>
+
+              <div>
+                <Label>
+                  {language === 'vi' ? 'Bạn muốn' : 'I want to'}
+                </Label>
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, role: 'buyer' })}
+                    className={`p-4 border-2 rounded-lg transition-all ${
+                      formData.role === 'buyer'
+                        ? 'border-purple-600 bg-purple-50 text-purple-700'
+                        : 'border-gray-200 hover:border-purple-300'
+                    }`}
+                  >
+                    <div className="text-2xl mb-2">🛒</div>
+                    <div className="font-semibold">
+                      {language === 'vi' ? 'Mua hàng' : 'Buy'}
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {language === 'vi' ? 'Tìm kiếm sản phẩm' : 'Find products'}
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, role: 'seller' })}
+                    className={`p-4 border-2 rounded-lg transition-all ${
+                      formData.role === 'seller'
+                        ? 'border-purple-600 bg-purple-50 text-purple-700'
+                        : 'border-gray-200 hover:border-purple-300'
+                    }`}
+                  >
+                    <div className="text-2xl mb-2">💼</div>
+                    <div className="font-semibold">
+                      {language === 'vi' ? 'Bán hàng' : 'Sell'}
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {language === 'vi' ? 'Đăng sản phẩm' : 'List products'}
+                    </div>
+                  </button>
+                </div>
               </div>
 
               <div>

@@ -1,4 +1,7 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useAuth } from './AuthContext';
+
+const API_URL = 'http://127.0.0.1:8000/backend/api';
 
 export interface CartItem {
   id: string;
@@ -14,52 +17,195 @@ export interface CartItem {
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: Omit<CartItem, 'quantity'>) => void;
-  removeItem: (id: string) => void;
-  updateQuantity: (id: string, quantity: number) => void;
-  clearCart: () => void;
+  addItem: (item: Omit<CartItem, 'quantity' | 'id'>) => Promise<void>;
+  removeItem: (id: string) => Promise<void>;
+  updateQuantity: (id: string, quantity: number) => Promise<void>;
+  clearCart: () => Promise<void>;
   total: number;
+  loading: boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [items, setItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const addItem = (item: Omit<CartItem, 'quantity'>) => {
-    setItems((prev) => {
-      const existingItem = prev.find((i) => i.id === item.id);
-      if (existingItem) {
-        return prev.map((i) =>
-          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
-        );
+  // Load cart from server when user logs in
+  useEffect(() => {
+    if (user) {
+      fetchCart();
+    } else {
+      setItems([]);
+    }
+  }, [user]);
+
+  const fetchCart = async () => {
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/cart.php`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const cartItems = (result.data || result.message || []).map((item: any) => ({
+          id: item.id.toString(),
+          productId: item.product_id.toString(),
+          name: item.name,
+          price: parseFloat(item.price),
+          image: item.image || '',
+          size: item.size,
+          color: item.color,
+          quantity: item.quantity,
+          sellerId: item.seller_id.toString()
+        }));
+        setItems(cartItems);
       }
-      return [...prev, { ...item, quantity: 1 }];
-    });
+    } catch (error) {
+      console.error('Error fetching cart:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const updateQuantity = (id: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeItem(id);
+  const addItem = async (item: Omit<CartItem, 'quantity' | 'id'>) => {
+    if (!user) {
+      alert('Vui lòng đăng nhập để thêm vào giỏ hàng');
       return;
     }
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, quantity } : item))
-    );
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/cart.php`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          product_id: parseInt(item.productId),
+          quantity: 1,
+          size: item.size,
+          color: item.color
+        })
+      });
+
+      if (response.ok) {
+        await fetchCart(); // Refresh cart from server
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to add item');
+      }
+    } catch (error: any) {
+      console.error('Error adding item:', error);
+      alert(error.message || 'Không thể thêm vào giỏ hàng');
+    }
   };
 
-  const clearCart = () => {
-    setItems([]);
+  const removeItem = async (id: string) => {
+    if (!user) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/cart.php?id=${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        setItems(prev => prev.filter(item => item.id !== id));
+      }
+    } catch (error) {
+      console.error('Error removing item:', error);
+    }
+  };
+
+  const updateQuantity = async (id: string, quantity: number) => {
+    if (!user) return;
+
+    if (quantity <= 0) {
+      await removeItem(id);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/cart.php?id=${id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ quantity })
+      });
+
+      if (response.ok) {
+        setItems(prev =>
+          prev.map(item => (item.id === id ? { ...item, quantity } : item))
+        );
+      }
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+    }
+  };
+
+  const clearCart = async () => {
+    if (!user) {
+      console.log('No user, skipping clearCart');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      console.log('Clearing cart for user:', user.id);
+      
+      const response = await fetch(`${API_URL}/cart.php`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const result = await response.json();
+      console.log('Clear cart response:', result);
+
+      if (response.ok && result.success) {
+        setItems([]);
+        console.log('Cart cleared successfully');
+      } else {
+        // Nếu backend báo lỗi nhưng có thể cart đã được xóa rồi (bởi callback)
+        // Thì fetch lại để sync
+        console.warn('Clear cart response not success, refetching cart:', result.message);
+        await fetchCart();
+      }
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+      // Nếu có lỗi, thử fetch lại để sync với backend
+      try {
+        await fetchCart();
+      } catch (fetchError) {
+        console.error('Failed to refetch cart:', fetchError);
+      }
+      throw error; // Re-throw để caller biết có lỗi
+    }
   };
 
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, total }}>
+    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, total, loading }}>
       {children}
     </CartContext.Provider>
   );

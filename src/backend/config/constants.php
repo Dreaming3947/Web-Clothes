@@ -7,10 +7,10 @@
 // Timezone
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-// Base URLs
-define('BASE_URL', 'http://localhost/secondhand-marketplace');
-define('API_URL', BASE_URL . '/backend/api');
-define('UPLOAD_URL', BASE_URL . '/backend/uploads');
+// Base URLs (local)
+define('BASE_URL', 'http://127.0.0.1:8000/backend');
+define('API_URL', BASE_URL . '/api');
+define('UPLOAD_URL', BASE_URL . '/uploads');
 
 // Paths
 define('ROOT_PATH', dirname(__DIR__));
@@ -111,9 +111,7 @@ define('SUCCESS_MESSAGES', [
 
 // CORS settings
 define('ALLOWED_ORIGINS', [
-    'http://localhost:3000',
-    'http://localhost:8000',
-    'http://localhost'
+    'https://secondstyle.infinityfree.me'
 ]);
 
 // Create upload directories if not exists

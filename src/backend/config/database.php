@@ -1,36 +1,45 @@
 <?php
 /**
- * Database Configuration
- * Cấu hình kết nối database
+ * Database Configuration for Production (InfinityFree)
+ * 
+ * HƯỚNG DẪN:
+ * 1. Đổi tên file này thành database.php khi deploy lên hosting
+ * 2. Thay thế các thông tin database bằng thông tin từ InfinityFree Control Panel
+ * 3. KHÔNG commit file database.php có thông tin thật lên Git
  */
 
 class Database {
-    private $host = "localhost";
-    private $db_name = "secondhand_marketplace";
-    private $username = "root";
-    private $password = "longlol260305";
-    private $charset = "utf8mb4";
-    public $conn;
+    // Thông tin database local (XAMPP/MAMP/WAMP)
+    private $host = "localhost";  // Hostname database
+    private $db_name = "secondhand_marketplace";     // Tên database local
+    private $username = "root";                // Username database mặc định
+    private $password = "password";        // Password database mặc định (rỗng)
+    private $conn;
 
     /**
-     * Kết nối đến database
+     * Kết nối database
      */
     public function getConnection() {
         $this->conn = null;
 
         try {
-            $dsn = "mysql:host=" . $this->host . ";dbname=" . $this->db_name . ";charset=" . $this->charset;
-            $options = [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-            ];
-            
-            $this->conn = new PDO($dsn, $this->username, $this->password, $options);
-            
+            $this->conn = new PDO(
+                "mysql:host=" . $this->host . ";dbname=" . $this->db_name . ";charset=utf8mb4",
+                $this->username,
+                $this->password,
+                [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
+                ]
+            );
         } catch(PDOException $e) {
-            error_log("Connection Error: " . $e->getMessage());
-            throw new Exception("Không thể kết nối đến database");
+            // Log error (nếu có file log)
+            error_log("Database Connection Error: " . $e->getMessage());
+            
+            // Hiển thị thông báo user-friendly
+            die("Lỗi kết nối database. Vui lòng thử lại sau.");
         }
 
         return $this->conn;

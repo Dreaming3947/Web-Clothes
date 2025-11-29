@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { Filter, SlidersHorizontal, Heart, ChevronDown } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
 import { Slider } from './ui/slider';
+import { toast } from 'sonner';
 import {
   Sheet,
   SheetContent,
@@ -33,7 +35,11 @@ const API_URL = 'http://127.0.0.1:8000/backend/api';
 export default function ProductList() {
   const [searchParams] = useSearchParams();
   const { language, t } = useLanguage();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [brands, setBrands] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('newest');
   const [priceRange, setPriceRange] = useState([0, 10000000]);
@@ -41,11 +47,83 @@ export default function ProductList() {
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<Set<number>>(new Set());
+
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch(`${API_URL}/categories.php?hierarchical=true`);
+        const result = await response.json();
+        if (result.success && result.data) {
+          setCategories(result.data);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Fetch brands from API
+  useEffect(() => {
+    const fetchBrands = async () => {
+      try {
+        const response = await fetch(`${API_URL}/products.php?action=brands`);
+        const result = await response.json();
+        if (result.success && result.data) {
+          setBrands(result.data);
+        }
+      } catch (error) {
+        console.error('Error fetching brands:', error);
+      }
+    };
+    fetchBrands();
+  }, []);
 
   // Fetch products from API
   useEffect(() => {
     fetchProducts();
   }, [sortBy, priceRange, selectedCategories, selectedBrands, selectedSizes, selectedConditions]);
+
+  const handleFavoriteToggle = async (productId: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user) {
+      toast.error(language === 'vi' ? 'Vui lòng đăng nhập để thêm vào yêu thích' : 'Please login to add to favorites');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/products.php?id=${productId}&action=favorite`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        const newFavorites = new Set(favorites);
+        if (data.data.favorited) {
+          newFavorites.add(productId);
+        } else {
+          newFavorites.delete(productId);
+        }
+        setFavorites(newFavorites);
+        toast.success(data.message);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast.error(language === 'vi' ? 'Lỗi khi thêm vào yêu thích' : 'Error adding to favorites');
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -104,7 +182,19 @@ export default function ProductList() {
       const data = await response.json();
       
       if (data.success && data.data) {
-        setProducts(data.data);
+        // Filter out sold products (safety check)
+        const availableProducts = data.data.filter((p: any) => p.status !== 'sold' && p.status !== 'deleted');
+        setProducts(availableProducts);
+        
+        // Initialize favorites from product data
+        const initialFavorites = new Set<number>();
+        availableProducts.forEach((p: any) => {
+          // Handle both boolean and numeric values (0/1 from SQL)
+          if (p.is_favorited === true || p.is_favorited === 1 || p.is_favorited === '1') {
+            initialFavorites.add(p.id);
+          }
+        });
+        setFavorites(initialFavorites);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -114,19 +204,13 @@ export default function ProductList() {
     }
   };
 
-  const categories = [
-    { id: 'quan-ao-nu', label: { vi: 'Nữ', en: 'Women' } },
-    { id: 'quan-ao-nam', label: { vi: 'Nam', en: 'Men' } },
-    { id: 'phu-kien', label: { vi: 'Phụ kiện', en: 'Accessories' } },
-    { id: 'giay-dep', label: { vi: 'Giày dép', en: 'Shoes' } },
-  ];
-
-  const brands = ['Nike', 'Adidas', 'Zara', 'H&M', 'Uniqlo', 'Levi\'s', 'Mango'];
+  // Static filter options
   const sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
   const conditions = [
-    { id: 'new', label: { vi: 'Mới', en: 'New' } },
-    { id: 'like-new', label: { vi: 'Như mới', en: 'Like New' } },
-    { id: 'good', label: { vi: 'Tốt', en: 'Good' } },
+    { id: 'new', label: { vi: 'Mới 100%', en: 'Brand New' } },
+    { id: 'like-new', label: { vi: 'Như mới (95-99%)', en: 'Like New (95-99%)' } },
+    { id: 'good', label: { vi: 'Tốt (80-94%)', en: 'Good (80-94%)' } },
+    { id: 'fair', label: { vi: 'Khá (60-79%)', en: 'Fair (60-79%)' } },
     { id: 'used', label: { vi: 'Đã qua sử dụng', en: 'Used' } },
   ];
 
@@ -161,23 +245,50 @@ export default function ProductList() {
           <h3>{t('category')}</h3>
           <ChevronDown className="size-4" />
         </CollapsibleTrigger>
-        <CollapsibleContent className="mt-4 space-y-3">
-          {categories.map((category) => (
-            <div key={category.id} className="flex items-center space-x-2">
-              <Checkbox
-                id={`category-${category.id}`}
-                checked={selectedCategories.includes(category.id)}
-                onCheckedChange={(checked) => {
-                  setSelectedCategories(
-                    checked
-                      ? [...selectedCategories, category.id]
-                      : selectedCategories.filter((c) => c !== category.id)
-                  );
-                }}
-              />
-              <Label htmlFor={`category-${category.id}`} className="cursor-pointer">
-                {category.label[language]}
-              </Label>
+        <CollapsibleContent className="mt-4 space-y-2">
+          {categories.map((parentCategory) => (
+            <div key={parentCategory.id} className="space-y-2">
+              {/* Parent Category */}
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id={`category-${parentCategory.slug}`}
+                  checked={selectedCategories.includes(parentCategory.slug)}
+                  onCheckedChange={(checked) => {
+                    setSelectedCategories(
+                      checked
+                        ? [...selectedCategories, parentCategory.slug]
+                        : selectedCategories.filter((c) => c !== parentCategory.slug)
+                    );
+                  }}
+                />
+                <Label htmlFor={`category-${parentCategory.slug}`} className="cursor-pointer font-medium">
+                  {parentCategory.icon ? `${parentCategory.icon} ` : ''}{parentCategory.name}
+                </Label>
+              </div>
+              
+              {/* Child Categories */}
+              {parentCategory.children && parentCategory.children.length > 0 && (
+                <div className="ml-6 space-y-2">
+                  {parentCategory.children.map((childCategory: any) => (
+                    <div key={childCategory.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`category-${childCategory.slug}`}
+                        checked={selectedCategories.includes(childCategory.slug)}
+                        onCheckedChange={(checked) => {
+                          setSelectedCategories(
+                            checked
+                              ? [...selectedCategories, childCategory.slug]
+                              : selectedCategories.filter((c) => c !== childCategory.slug)
+                          );
+                        }}
+                      />
+                      <Label htmlFor={`category-${childCategory.slug}`} className="cursor-pointer text-sm text-gray-600">
+                        {childCategory.icon ? `${childCategory.icon} ` : ''}{childCategory.name}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </CollapsibleContent>
@@ -376,12 +487,9 @@ export default function ProductList() {
                         variant="ghost"
                         size="icon"
                         className="absolute top-2 right-2 bg-white/90 hover:bg-white"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          // Add to favorites logic
-                        }}
+                        onClick={(e) => handleFavoriteToggle(product.id, e)}
                       >
-                        <Heart className="size-4" />
+                        <Heart className={`size-4 ${favorites.has(product.id) || product.is_favorited ? 'fill-red-500 text-red-500' : ''}`} />
                       </Button>
                       {discountPercent > 0 && (
                         <div className="absolute top-2 left-2">

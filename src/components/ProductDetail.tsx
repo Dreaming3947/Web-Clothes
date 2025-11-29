@@ -22,13 +22,45 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState(0);
   const [product, setProduct] = useState<any>(null);
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFavorited, setIsFavorited] = useState(false);
 
   useEffect(() => {
     if (id) {
       fetchProduct();
     }
   }, [id]);
+
+  const handleFavoriteToggle = async () => {
+    if (!user) {
+      toast.error(language === 'vi' ? 'Vui lòng đăng nhập để thêm vào yêu thích' : 'Please login to add to favorites');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/products.php?id=${id}&action=favorite`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setIsFavorited(data.data.favorited);
+        toast.success(data.message);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast.error(language === 'vi' ? 'Lỗi khi thêm vào yêu thích' : 'Error adding to favorites');
+    }
+  };
 
   const fetchProduct = async () => {
     try {
@@ -59,7 +91,22 @@ export default function ProductDetail() {
           conditionDetail: data.data.condition_detail || '',
           minAcceptablePrice: data.data.min_acceptable_price || data.data.price * 0.8,
           allowNegotiation: data.data.allow_negotiation !== false,
-          specifications: data.data.specifications || {},
+          specifications: (() => {
+            try {
+              // If specifications is a string, parse it
+              if (typeof data.data.specifications === 'string') {
+                return JSON.parse(data.data.specifications);
+              }
+              // If it's already an object, use it
+              if (typeof data.data.specifications === 'object' && data.data.specifications !== null) {
+                return data.data.specifications;
+              }
+              return {};
+            } catch (e) {
+              console.error('Error parsing specifications:', e);
+              return {};
+            }
+          })(),
           reviews: [], // TODO: Fetch reviews from API
           seller: {
             id: data.data.seller_id,
@@ -71,6 +118,10 @@ export default function ProductDetail() {
           }
         };
         setProduct(mappedProduct);
+        setIsFavorited(data.data.is_favorited || false);
+        
+        // Fetch related products from same category
+        fetchRelatedProducts(data.data.category_id, data.data.id);
       } else {
         toast.error(language === 'vi' ? 'Không tìm thấy sản phẩm' : 'Product not found');
         navigate('/products');
@@ -80,6 +131,30 @@ export default function ProductDetail() {
       toast.error(language === 'vi' ? 'Lỗi tải sản phẩm' : 'Error loading product');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRelatedProducts = async (categoryId: number, currentProductId: number) => {
+    try {
+      // Fetch products from same category using category_id filter
+      const response = await fetch(`${API_URL}/products.php?category_id=${categoryId}&limit=10`);
+      const data = await response.json();
+      
+      if (data.success && data.data && data.data.length > 0) {
+        // Filter out current product
+        const filtered = data.data.filter((p: any) => p.id !== currentProductId);
+        
+        // Shuffle and take first 4
+        const shuffled = filtered.sort(() => Math.random() - 0.5);
+        const selected = shuffled.slice(0, 4);
+        
+        setRelatedProducts(selected);
+      } else {
+        setRelatedProducts([]);
+      }
+    } catch (error) {
+      console.error('Error fetching related products:', error);
+      setRelatedProducts([]);
     }
   };
 
@@ -99,9 +174,13 @@ export default function ProductDetail() {
     );
   }
 
-  const handleAddToCart = () => {
-    addItem({
-      id: product.id,
+  const handleAddToCart = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    await addItem({
       productId: product.id,
       name: product.name,
       price: product.price,
@@ -112,13 +191,13 @@ export default function ProductDetail() {
     toast.success(language === 'vi' ? 'Đã thêm vào giỏ hàng' : 'Added to cart');
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
     if (!user) {
       navigate('/login');
       return;
     }
 
-    handleAddToCart();
+    await handleAddToCart();
     navigate('/checkout');
   };
 
@@ -212,8 +291,8 @@ export default function ProductDetail() {
               <p className="text-gray-600">{product.brand}</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="icon">
-                <Heart className="size-5" />
+              <Button variant="outline" size="icon" onClick={handleFavoriteToggle}>
+                <Heart className={`size-5 ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
               </Button>
               <Button variant="outline" size="icon">
                 <Share2 className="size-5" />
@@ -362,12 +441,18 @@ export default function ProductDetail() {
           <Card>
             <CardContent className="p-6">
               <div className="space-y-3">
-                {Object.entries(product.specifications).map(([key, value]) => (
-                  <div key={key} className="flex border-b pb-3 last:border-0">
-                    <span className="w-1/3 text-gray-600">{key}</span>
-                    <span className="w-2/3">{value}</span>
-                  </div>
-                ))}
+                {product.specifications && typeof product.specifications === 'object' && !Array.isArray(product.specifications) ? (
+                  Object.entries(product.specifications).map(([key, value]) => (
+                    <div key={key} className="flex border-b pb-3 last:border-0">
+                      <span className="w-1/3 text-gray-600">{key}</span>
+                      <span className="w-2/3">{String(value)}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-center">
+                    {language === 'vi' ? 'Chưa có thông số kỹ thuật' : 'No specifications available'}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -414,23 +499,29 @@ export default function ProductDetail() {
       <div>
         <h2 className="text-2xl mb-6">{language === 'vi' ? 'Sản phẩm tương tự' : 'Similar Products'}</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <Link key={i} to={`/products/${i}`}>
-              <Card className="group overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="aspect-square overflow-hidden">
-                  <img
-                    src={`https://images.unsplash.com/photo-${1551028719 + i}-00167b16eac5?w=400`}
-                    alt={`Product ${i}`}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                  />
-                </div>
-                <CardContent className="p-4">
-                  <h3 className="mb-2 line-clamp-2">{language === 'vi' ? `Sản phẩm ${i}` : `Product ${i}`}</h3>
-                  <p className="text-purple-600">450,000₫</p>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+          {relatedProducts.length > 0 ? (
+            relatedProducts.map((relatedProduct) => (
+              <Link key={relatedProduct.id} to={`/products/${relatedProduct.id}`} onClick={() => window.scrollTo(0, 0)}>
+                <Card className="group overflow-hidden hover:shadow-lg transition-shadow">
+                  <div className="aspect-square overflow-hidden">
+                    <img
+                      src={relatedProduct.images?.[0] || 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400'}
+                      alt={relatedProduct.title}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                    />
+                  </div>
+                  <CardContent className="p-4">
+                    <h3 className="mb-2 line-clamp-2">{relatedProduct.title}</h3>
+                    <p className="text-purple-600">{relatedProduct.price.toLocaleString('vi-VN')}₫</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))
+          ) : (
+            <div className="col-span-full text-center text-gray-500 py-8">
+              {language === 'vi' ? 'Không có sản phẩm tương tự' : 'No similar products'}
+            </div>
+          )}
         </div>
       </div>
     </div>

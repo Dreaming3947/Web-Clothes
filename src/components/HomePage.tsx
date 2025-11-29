@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Shirt, Watch, Gem, TrendingUp, Shield, Recycle } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 
@@ -9,11 +10,14 @@ const API_URL = 'http://127.0.0.1:8000/backend/api';
 
 export default function HomePage() {
   const { language } = useLanguage();
+  const { user } = useAuth();
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [categoryCounts, setCategoryCounts] = useState<{[key: string]: number}>({});
 
   useEffect(() => {
     fetchFeaturedProducts();
+    fetchCategoryCounts();
   }, []);
 
   const fetchFeaturedProducts = async () => {
@@ -33,30 +37,43 @@ export default function HomePage() {
     }
   };
 
+  const fetchCategoryCounts = async () => {
+    try {
+      const response = await fetch(`${API_URL}/products.php?action=category-counts`);
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        setCategoryCounts(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching category counts:', error);
+    }
+  };
+
   const categories = [
     {
-      id: 'women',
+      id: 'quan-ao-nu',
       name: { vi: 'Thời trang Nữ', en: "Women's Fashion" },
       image: 'https://images.unsplash.com/photo-1622080159621-bfceab50b3e3?w=400',
-      count: '1,234',
+      count: categoryCounts['quan-ao-nu'] || 0,
     },
     {
-      id: 'men',
+      id: 'quan-ao-nam',
       name: { vi: 'Thời trang Nam', en: "Men's Fashion" },
       image: 'https://images.unsplash.com/photo-1599012307530-d163bd04ecab?w=400',
-      count: '856',
+      count: categoryCounts['quan-ao-nam'] || 0,
     },
     {
-      id: 'accessories',
+      id: 'phu-kien',
       name: { vi: 'Phụ kiện', en: 'Accessories' },
       image: 'https://images.unsplash.com/photo-1624192647570-1131acc12ccf?w=400',
-      count: '643',
+      count: categoryCounts['phu-kien'] || 0,
     },
     {
-      id: 'shoes',
+      id: 'giay-dep',
       name: { vi: 'Giày dép', en: 'Shoes' },
       image: 'https://images.unsplash.com/photo-1534639077088-d702bcf685e7?w=400',
-      count: '521',
+      count: categoryCounts['giay-dep'] || 0,
     },
   ];
 
@@ -100,11 +117,6 @@ export default function HomePage() {
                 <Link to="/products">
                   {language === 'vi' ? 'Khám phá ngay' : 'Shop Now'}
                   <ArrowRight className="ml-2 size-5" />
-                </Link>
-              </Button>
-              <Button size="lg" className="bg-white/20 text-white hover:bg-white hover:text-purple-600 border-2 border-white backdrop-blur-sm" asChild>
-                <Link to="/create-listing">
-                  {language === 'vi' ? 'Bán đồ của bạn' : 'Sell Your Items'}
                 </Link>
               </Button>
             </div>
@@ -236,26 +248,28 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-purple-600 to-pink-600 text-white">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl mb-4">
-            {language === 'vi' 
-              ? 'Sẵn sàng bắt đầu?' 
-              : 'Ready to Get Started?'}
-          </h2>
-          <p className="text-lg mb-8 opacity-90">
-            {language === 'vi'
-              ? 'Đăng ký ngay để mua bán thời trang bền vững'
-              : 'Sign up now to buy and sell sustainable fashion'}
-          </p>
-          <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-100" asChild>
-            <Link to="/register">
-              {language === 'vi' ? 'Đăng ký miễn phí' : 'Sign Up Free'}
-            </Link>
-          </Button>
-        </div>
-      </section>
+      {/* CTA Section - Only show if user is not logged in */}
+      {!user && (
+        <section className="py-16 bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+          <div className="container mx-auto px-4 text-center">
+            <h2 className="text-3xl md:text-4xl mb-4">
+              {language === 'vi' 
+                ? 'Sẵn sàng bắt đầu?' 
+                : 'Ready to Get Started?'}
+            </h2>
+            <p className="text-lg mb-8 opacity-90">
+              {language === 'vi'
+                ? 'Đăng ký ngay để mua bán thời trang bền vững'
+                : 'Sign up now to buy and sell sustainable fashion'}
+            </p>
+            <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-100" asChild>
+              <Link to="/register">
+                {language === 'vi' ? 'Đăng ký miễn phí' : 'Sign Up Free'}
+              </Link>
+            </Button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

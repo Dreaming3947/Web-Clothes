@@ -42,7 +42,7 @@ if ($method === 'GET' && !isset($_GET['thread_id'])) {
                 (SELECT COUNT(*) FROM messages WHERE thread_id = mt.id AND receiver_id = ? AND is_read = FALSE) as unread_count,
                 p.title as product_title,
                 p.price as product_price,
-                (SELECT url FROM product_images WHERE product_id = p.id ORDER BY display_order LIMIT 1) as product_image
+                (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY display_order LIMIT 1) as product_image
               FROM message_threads mt
               LEFT JOIN users u1 ON mt.user1_id = u1.id
               LEFT JOIN users u2 ON mt.user2_id = u2.id

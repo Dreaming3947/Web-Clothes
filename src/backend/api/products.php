@@ -30,9 +30,53 @@ $validator = new Validation();
 $method = $_SERVER['REQUEST_METHOD'];
 
 // ============================================
+// GET - Get user favorites
+// ============================================
+if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'favorites') {
+    $currentUser = Auth::requireAuth();
+    
+    $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+    $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : PRODUCTS_PER_PAGE;
+
+    error_log("Fetching favorites for user_id: " . $currentUser['user_id']);
+    $result = $productModel->getUserFavorites($currentUser['user_id'], $page, $limit);
+    error_log("Favorites count: " . count($result['data']) . ", Total: " . $result['total']);
+
+    Response::paginated(
+        $result['data'],
+        $result['total'],
+        $page,
+        $limit,
+        'Lấy danh sách yêu thích thành công'
+    );
+}
+
+// ============================================
+// GET - Get distinct brands
+// ============================================
+else if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'brands') {
+    $brands = $productModel->getDistinctBrands();
+    Response::success('Brands retrieved successfully', $brands);
+}
+
+// ============================================
+// GET - Get product count by category
+// ============================================
+else if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'category-counts') {
+    $categorySlugs = ['quan-ao-nu', 'quan-ao-nam', 'phu-kien', 'giay-dep'];
+    $counts = [];
+    
+    foreach ($categorySlugs as $slug) {
+        $counts[$slug] = $productModel->getCountByCategory($slug);
+    }
+    
+    Response::success('Category counts retrieved successfully', $counts);
+}
+
+// ============================================
 // GET - Lấy danh sách sản phẩm
 // ============================================
-if ($method === 'GET' && !isset($_GET['id'])) {
+else if ($method === 'GET' && !isset($_GET['id'])) {
     $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
     $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : PRODUCTS_PER_PAGE;
 
@@ -79,6 +123,10 @@ if ($method === 'GET' && !isset($_GET['id'])) {
             : [$_GET['category']];
     }
     
+    if (isset($_GET['category_id'])) {
+        $filters['category_id'] = (int)$_GET['category_id'];
+    }
+    
     if (isset($_GET['location_city'])) {
         $filters['location_city'] = Validation::sanitizeString($_GET['location_city']);
     }
@@ -95,7 +143,16 @@ if ($method === 'GET' && !isset($_GET['id'])) {
         $filters['sort'] = $_GET['sort'];
     }
 
-    $result = $productModel->getAll($page, $limit, $filters);
+    // Get current user if authenticated (optional)
+    $currentUser = null;
+    try {
+        $currentUser = Auth::getCurrentUser($db);
+    } catch (Exception $e) {
+        // User not authenticated, continue without user context
+    }
+    $userId = $currentUser ? $currentUser['user_id'] : null;
+
+    $result = $productModel->getAll($page, $limit, $filters, $userId);
 
     Response::paginated(
         $result['data'],
@@ -107,13 +164,22 @@ if ($method === 'GET' && !isset($_GET['id'])) {
 }
 
 // ============================================
-// GET - Lấy chi tiết sản phẩm
+// GET - Lấy chi tiết sản phẩm theo ID
 // ============================================
 else if ($method === 'GET' && isset($_GET['id'])) {
     $productId = (int)$_GET['id'];
     $incrementView = isset($_GET['increment_view']) && $_GET['increment_view'] === 'true';
 
-    $product = $productModel->getById($productId, $incrementView);
+    // Get current user if authenticated (optional)
+    $currentUser = null;
+    try {
+        $currentUser = Auth::getCurrentUser($db);
+    } catch (Exception $e) {
+        // User not authenticated, continue without user context
+    }
+    $userId = $currentUser ? $currentUser['user_id'] : null;
+
+    $product = $productModel->getById($productId, $incrementView, $userId);
 
     if (!$product) {
         Response::notFound('Không tìm thấy sản phẩm');
@@ -139,8 +205,7 @@ else if ($method === 'POST' && !isset($_GET['id'])) {
     $validator->positive($request['price'] ?? 0, 'price');
     $validator->required($request['category_id'] ?? '', 'category_id');
     $validator->required($request['condition'] ?? '', 'condition');
-    $validator->inArray($request['condition'] ?? '', ['new', 'like-new', 'good', 'fair'], 'condition');
-    $validator->required($request['location_city'] ?? '', 'location_city');
+    $validator->inArray($request['condition'] ?? '', ['new', 'like-new', 'good', 'fair', 'used', 'damaged', 'repaired'], 'condition');
 
     if ($validator->hasErrors()) {
         Response::validationError($validator->getErrors());
@@ -153,13 +218,18 @@ else if ($method === 'POST' && !isset($_GET['id'])) {
         'title' => Validation::sanitizeString($request['title']),
         'description' => Validation::sanitizeString($request['description']),
         'price' => (float)$request['price'],
+        'original_price' => isset($request['original_price']) ? (float)$request['original_price'] : (float)$request['price'],
         'condition' => $request['condition'],
+        'condition_detail' => Validation::sanitizeString($request['condition_detail'] ?? ''),
         'size' => Validation::sanitizeString($request['size'] ?? ''),
         'brand' => Validation::sanitizeString($request['brand'] ?? ''),
         'color' => Validation::sanitizeString($request['color'] ?? ''),
         'material' => Validation::sanitizeString($request['material'] ?? ''),
-        'location_city' => Validation::sanitizeString($request['location_city']),
+        'location_city' => Validation::sanitizeString($request['location_city'] ?? 'TP.HCM'),
         'location_district' => Validation::sanitizeString($request['location_district'] ?? ''),
+        'allow_negotiation' => isset($request['allow_negotiation']) ? (bool)$request['allow_negotiation'] : true,
+        'min_acceptable_price' => isset($request['min_acceptable_price']) ? (float)$request['min_acceptable_price'] : null,
+        'specifications' => $request['specifications'] ?? [],
         'status' => 'pending', // Pending approval
         'shipping_methods' => $request['shipping_methods'] ?? [],
         'payment_methods' => $request['payment_methods'] ?? []
@@ -169,6 +239,11 @@ else if ($method === 'POST' && !isset($_GET['id'])) {
     $productId = $productModel->create($productData);
 
     if ($productId) {
+        // Add images if provided
+        if (!empty($request['images']) && is_array($request['images'])) {
+            $productModel->addImages($productId, $request['images'], 0);
+        }
+
         // Add tags if provided
         if (!empty($request['tags']) && is_array($request['tags'])) {
             $productModel->addTags($productId, $request['tags']);
@@ -248,8 +323,36 @@ else if ($method === 'PUT' && isset($_GET['id'])) {
         Response::forbidden('Bạn không có quyền chỉnh sửa sản phẩm này');
     }
 
+    // Prepare update data
+    $updateData = [
+        'title' => Validation::sanitizeString($request['title']),
+        'description' => Validation::sanitizeString($request['description']),
+        'price' => (float)$request['price'],
+        'original_price' => isset($request['original_price']) ? (float)$request['original_price'] : (float)$request['price'],
+        'category_id' => (int)$request['category_id'],
+        'condition' => $request['condition'],
+        'condition_detail' => Validation::sanitizeString($request['condition_detail'] ?? ''),
+        'size' => Validation::sanitizeString($request['size'] ?? ''),
+        'brand' => Validation::sanitizeString($request['brand'] ?? ''),
+        'color' => Validation::sanitizeString($request['color'] ?? ''),
+        'material' => Validation::sanitizeString($request['material'] ?? ''),
+        'allow_negotiation' => isset($request['allow_negotiation']) ? (bool)$request['allow_negotiation'] : true,
+        'min_acceptable_price' => isset($request['min_acceptable_price']) ? (float)$request['min_acceptable_price'] : null,
+        'specifications' => $request['specifications'] ?? [],
+        'shipping_methods' => $request['shipping_methods'] ?? [],
+        'payment_methods' => $request['payment_methods'] ?? []
+    ];
+
     // Update product
-    if ($productModel->update($productId, $request)) {
+    if ($productModel->update($productId, $updateData)) {
+        // Update images if provided
+        if (!empty($request['images']) && is_array($request['images'])) {
+            // Delete old images
+            $productModel->deleteImages($productId);
+            // Add new images
+            $productModel->addImages($productId, $request['images'], 0);
+        }
+
         Response::success(SUCCESS_MESSAGES['UPDATED']);
     } else {
         Response::serverError();
@@ -293,26 +396,6 @@ else if ($method === 'POST' && isset($_GET['id']) && isset($_GET['action']) && $
     Response::success(
         $result['favorited'] ? 'Đã thêm vào yêu thích' : 'Đã bỏ yêu thích',
         $result
-    );
-}
-
-// ============================================
-// GET - Get user favorites
-// ============================================
-else if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'favorites') {
-    $currentUser = Auth::requireAuth();
-    
-    $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-    $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : PRODUCTS_PER_PAGE;
-
-    $result = $productModel->getUserFavorites($currentUser['user_id'], $page, $limit);
-
-    Response::paginated(
-        $result['data'],
-        $result['total'],
-        $page,
-        $limit,
-        'Lấy danh sách yêu thích thành công'
     );
 }
 

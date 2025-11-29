@@ -9,6 +9,8 @@ type ProductCardProps = {
   product: Product;
   onView: () => void;
   onAddToCart?: () => void;
+  onFavoriteToggle?: (productId: number) => void;
+  isFavorited?: boolean;
 };
 
 const conditionLabels = {
@@ -25,7 +27,7 @@ const conditionColors = {
   'fair': 'bg-orange-100 text-orange-700',
 };
 
-export function ProductCard({ product, onView, onAddToCart }: ProductCardProps) {
+export function ProductCard({ product, onView, onAddToCart, onFavoriteToggle, isFavorited }: ProductCardProps) {
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow group cursor-pointer">
       <div className="relative" onClick={onView}>
@@ -45,9 +47,12 @@ export function ProductCard({ product, onView, onAddToCart }: ProductCardProps) 
           className="absolute top-2 right-2 bg-white/90 hover:bg-white"
           onClick={(e) => {
             e.stopPropagation();
+            if (onFavoriteToggle) {
+              onFavoriteToggle(product.id);
+            }
           }}
         >
-          <Heart className="w-4 h-4" />
+          <Heart className={`w-4 h-4 ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
         </Button>
         <Badge className={`absolute top-2 left-2 ${conditionColors[product.condition]}`}>
           {conditionLabels[product.condition]}
